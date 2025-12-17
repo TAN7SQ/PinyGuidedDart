@@ -1,0 +1,2 @@
+source E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/bootloader/gdbinit/symbols
+source E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/bootloader/gdbinit/connect
