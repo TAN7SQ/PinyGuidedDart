@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "01_bmi088_test",
-    "project_version":    "1",
+    "project_version":    "14ed5b3-dirty",
     "project_path":       "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test",
     "idf_path":           "E:/ENV/ESP32_IDF/V5_4_2/v5.4.2/esp-idf",
     "build_dir":          "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build",
@@ -1191,12 +1191,12 @@
             "type": "LIBRARY",
             "lib": "__idf_main",
             "reqs": [],
-            "priv_reqs": [ "esp_driver_spi", "esp_driver_gpio" ],
+            "priv_reqs": [ "esp_driver_i2c", "esp_driver_spi", "esp_driver_gpio" ],
             "managed_reqs": [],
             "managed_priv_reqs": [],
             "file": "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/main/libmain.a",
-            "sources": [ "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/main/main.c" ],
-            "include_dirs": []
+            "sources": [ "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/main/main.c", "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/main/Sensors/BMI088/bmi088.c", "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/main/Sensors/MS5611/ms5611.c" ],
+            "include_dirs": [ "Sensors/BMI088", "Sensors/MS5611" ]
         },
         "mbedtls": {
             "alias": "idf::mbedtls",
@@ -2857,10 +2857,10 @@
             "dir": "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/main",
             "lib": "__idf_main",
             "reqs": [],
-            "priv_reqs": [ "esp_driver_spi", "esp_driver_gpio" ],
+            "priv_reqs": [ "esp_driver_i2c", "esp_driver_spi", "esp_driver_gpio" ],
             "managed_reqs": [],
             "managed_priv_reqs": [],
-            "include_dirs": []
+            "include_dirs": [ "Sensors/BMI088", "Sensors/MS5611" ]
         }
     },
     "debug_prefix_map_gdbinit": "",
