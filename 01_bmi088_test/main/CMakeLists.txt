@@ -10,8 +10,10 @@ set(
 set(
     SOURCES
     "main.cpp"
-    "Sensors/BMI088/bmi088.c"
-    "Sensors/MS5611/ms5611.c"
+    # "Sensors/device_c/bmi088.c"
+    "Sensors/drivers/spi_bus.cpp"
+    "Sensors/device_cpp/bmi088.cpp"
+    #"Sensors/MS5611/ms5611.c"
 )
 
 
@@ -19,8 +21,10 @@ set(
 # 包含目录
 set(
     INCLUDE_DIRS
-    "Sensors/BMI088"
-    "Sensors/MS5611"
+    # "Sensors/device_c"
+    "Sensors/drivers"
+    "Sensors/device_cpp"
+    #"Sensors/MS5611"
 )
 
 idf_component_register(SRCS ${SOURCES}

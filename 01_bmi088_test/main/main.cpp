@@ -1,126 +1,71 @@
-/*
- * BMI088 SPI驱动完整代码（ESP32）
- * 功能：读取BMI088加速度计和陀螺仪数据，支持全双工SPI、数据滤波、错误处理
- * 引脚定义：CLK=13, MOSI=12, MISO=11, CS_GYRO=10, CS_ACCEL=9
- * 配置：加速度计±3g量程/50Hz输出，陀螺仪±500°/s量程/100Hz输出
- */
-// #include "esp_system.h"
-// #include "freertos/FreeRTOS.h"
-// #include "freertos/task.h"
-// #include "sdkconfig.h"
-// #include <inttypes.h>
-// #include <stdio.h>
-// #include <string.h>
-
-// #include "esp_log.h"
-
-// #include "bmi088.h"
-// #include "ms5611.h"
-// ========================== 应用入口 ==========================
-// void app_main(void)
-// {
-//     printf("APP Start!\n");
-
-//     // i2c_init();
-//     // i2c_scan_addr(0x77); // 存在，气压计 MS5611
-//     // i2c_scan_addr(0x0d); // 不在，怀疑焊接有问题， 地磁传感器 QMC5883l
-//     // i2c_scan_addr(0x6a); // 存在，陀螺仪 QMI8658C
-
-//     // ms5611_init();
-//     // xTaskCreate(bmi088_task, "bmi088_task", 10240, NULL, 5, NULL);
-//     xTaskCreate(ms5611_task, "ms5611_task", 10240, NULL, 5, NULL);
-
-//     // 主任务空循环
-//     while (1) {
-//         vTaskDelay(pdMS_TO_TICKS(1000));
-//     }
-// }
-
 #include <chrono>
 #include <functional>
 
-#include "i2c.hpp"
-#include "qmi8658.hpp"
+#include "bmi088.hpp"
+#include "spi_bus.hpp"
 
-using namespace std::chrono_literals;
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#define TAG "main"
+
+#define BMI088_HOST SPI2_HOST
+#define BMI088_CLK 13     // SPI时钟引脚
+#define BMI088_MOSI 12    // SPI主机输出引脚
+#define BMI088_MISO 11    // SPI主机输入引脚
+#define BMI088_CS_GYRO 10 // 陀螺仪片选引脚
+#define BMI088_CS_ACCEL 9 // 加速度计片选引脚
 
 extern "C" void app_main(void)
 {
-    // 初始化日志（简化版）
-    espp::Logger logger({.tag = "QMI8658 Simple Read", .level = espp::Logger::Verbosity::INFO});
-    logger.info("Starting QMI8658 simple data read example!");
+    ESP_LOGI(TAG, "App start");
 
-    // 创建I2C实例
-    espp::I2c i2c({
-        .port = I2C_NUM_0,
-        .sda_io_num = GPIO_NUM_21,
-        .scl_io_num = GPIO_NUM_20,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-    });
+    spi::BusConfig bus_cfg{
+        .host_num = BMI088_HOST,
+        .sclk_pin = (gpio_num_t)BMI088_CLK,
+        .mosi_pin = (gpio_num_t)BMI088_MOSI,
+        .miso_pin = (gpio_num_t)BMI088_MISO,
+        .max_transfer_sz = 32,
+        .dma_chan = SPI_DMA_CH_AUTO,
+    };
+    spi::SPIBus &spi_bus = spi::SPIBus::get_instance(bus_cfg);
 
-    // 定义QMI8658类型
-    using Imu = espp::Qmi8658<espp::qmi8658::Interface::I2C>;
+    spi::DeviceConfig gyro_cfg{
+        .clock_speed_hz = (uint16_t)(10 * 1000 * 1000),
+        .cs_pin = (gpio_num_t)BMI088_CS_GYRO,
+        .mode = 3,
+        .cs_ena_pretrans = 4,
+        .cs_ena_posttrans = 8,
+        .queue_size = 5,
+    };
 
-    // 配置IMU（移除所有滤波相关配置）
-    Imu::Config config{
-        .device_address = Imu::DEFAULT_ADDRESS_AD0_LOW,
-        // 绑定I2C读写函数
-        .write =
-            std::bind(&espp::I2c::write, &i2c, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
-        .read = std::bind(&espp::I2c::read, &i2c, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3),
-        // IMU基础配置
-        .imu_config =
-            {
-                .accelerometer_range = Imu::AccelerometerRange::RANGE_8G,
-                .accelerometer_odr = Imu::ODR::ODR_250_HZ,
-                .gyroscope_range = Imu::GyroscopeRange::RANGE_512_DPS,
-                .gyroscope_odr = Imu::ODR::ODR_250_HZ,
-            },
-        // 禁用滤波和自动初始化（手动初始化更清晰）
-        .orientation_filter = nullptr,
-        .auto_init = true};
+    spi::DeviceConfig accel_cfg{
+        .clock_speed_hz = (uint16_t)(10 * 1000 * 1000),
+        .cs_pin = (gpio_num_t)BMI088_CS_ACCEL,
+        .mode = 3,
+        .cs_ena_pretrans = 4,
+        .cs_ena_posttrans = 8,
+        .queue_size = 5,
+    };
+    sensor::BMI088 bmi088(accel_cfg, gyro_cfg);
+    bmi088.init();
 
-    // 创建IMU实例
-    logger.info("Initializing QMI8658");
-    Imu imu(config);
+    while (1) {
+        sensor::BMI088::Data data;
+        bmi088.read_data(data);
+        float acc_x_g = data.acc_x * 0.000088f;
+        float acc_y_g = data.acc_y * 0.000088f;
+        float acc_z_g = data.acc_z * 0.000088f;
+        float gyro_x_dps = data.gyro_x * 0.0152588f;
+        float gyro_y_dps = data.gyro_y * 0.0152588f;
+        float gyro_z_dps = data.gyro_z * 0.0152588f;
 
-    // 打印数据表头
-    fmt::print("Time (s), Accel X (m/s²), Accel Y (m/s²), Accel Z (m/s²), "
-               "Gyro X (dps), Gyro Y (dps), Gyro Z (dps), Temperature (°C)\n");
+        // 打印数据
+        ESP_LOGI(TAG, "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f", acc_x_g, acc_y_g, acc_z_g, gyro_x_dps, gyro_y_dps, gyro_z_dps);
+        // ESP_LOGI(
+        //     TAG, "%d, %d, %d, %d, %d, %d", data.acc_x, data.acc_y, data.acc_z, data.gyro_x, data.gyro_y,
+        //     data.gyro_z);
 
-    // 记录起始时间
-    auto start_time = esp_timer_get_time();
-
-    // 主循环读取数据
-    while (true) {
-        // 计算时间差（秒）
-        auto current_time = esp_timer_get_time();
-        float elapsed_time = (current_time - start_time) / 1000000.0f;
-
-        // 读取传感器数据
-        std::error_code ec;
-        if (imu.update(0.004f, ec)) { // 250Hz对应4ms更新周期
-            auto accel = imu.get_accelerometer();
-            auto gyro = imu.get_gyroscope();
-            float temp = imu.get_temperature();
-
-            // 打印原始数据
-            fmt::print("{:.3f}, {:.3f}, {:.3f}, {:.3f}, {:.3f}, {:.3f}, {:.3f}, {:.1f}\n",
-                       elapsed_time,
-                       (float)accel.x,
-                       (float)accel.y,
-                       (float)accel.z,
-                       (float)gyro.x,
-                       (float)gyro.y,
-                       (float)gyro.z,
-                       temp);
-        }
-        else {
-            logger.error("Failed to read QMI8658 data: {}", ec.message());
-        }
-
-        // 250Hz采样率，对应4ms延迟
-        vTaskDelay(pdMS_TO_TICKS(4));
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }

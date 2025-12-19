@@ -14,5 +14,3 @@ dependencies:
   #   # `public` flag doesn't have an effect dependencies of the `main` component.
   #   # All dependencies of `main` are public by default.
   #   public: true
-  espp/qmi8658: ^1.0.22
-  espp/i2c: ^1.0.32
