@@ -1,0 +1,20 @@
+dependencies:
+  espp/base_component: '>=1.0'
+  idf:
+    version: '>=5.0'
+description: C++ component representing a task which can be started / stopped / resumed.
+documentation: https://esp-cpp.github.io/espp/task.html
+license: MIT
+maintainers:
+- William Emfinger <waemfinger@gmail.com>
+repository: git://github.com/esp-cpp/espp.git
+repository_info:
+  commit_sha: c7e68b25183487da21ea1e8939a2a9fc8f6e436d
+  path: components/task
+tags:
+- cpp
+- Component
+- Task
+- Thread
+url: https://github.com/esp-cpp/espp/tree/main/components/task
+version: 1.0.32

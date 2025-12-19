@@ -554,6 +554,51 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
+  include("E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/espp__format/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
+  include("E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/espp__logger/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
+  include("E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/espp__base_component/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
+  include("E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/espp__cli/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
+  include("E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/espp__task/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
+  include("E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/espp__i2c/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
+  include("E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/espp__base_peripheral/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
+  include("E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/espp__math/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
+  include("E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/espp__qmi8658/cmake_install.cmake")
+endif()
+
+if(NOT CMAKE_INSTALL_LOCAL_ONLY)
+  # Include the install script for the subdirectory.
   include("E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/main/cmake_install.cmake")
 endif()
 

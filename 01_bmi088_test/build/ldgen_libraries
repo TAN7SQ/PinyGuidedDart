@@ -83,4 +83,8 @@ E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/spiffs/libspiffs.a
 E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/touch_element/libtouch_element.a
 E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/usb/libusb.a
 E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/wifi_provisioning/libwifi_provisioning.a
+E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/espp__logger/libespp__logger.a
+E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/espp__cli/libespp__cli.a
+E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/espp__task/libespp__task.a
+E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/espp__i2c/libespp__i2c.a
 E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/main/libmain.a

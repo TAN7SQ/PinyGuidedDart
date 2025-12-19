@@ -9,10 +9,12 @@ set(
 # 源文件
 set(
     SOURCES
-    "main.c"
+    "main.cpp"
     "Sensors/BMI088/bmi088.c"
     "Sensors/MS5611/ms5611.c"
 )
+
+
 
 # 包含目录
 set(

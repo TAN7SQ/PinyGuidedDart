@@ -148,6 +148,7 @@ static esp_err_t i2c_master_init(void)
         .sda_io_num = MS5611_SDA_GPIO_PIN,
         .glitch_ignore_cnt = 7,
         .flags.enable_internal_pullup = true,
+
     };
 
     i2c_master_bus_handle_t bus_handle;

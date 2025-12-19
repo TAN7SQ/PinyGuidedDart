@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "bootloader",
-    "project_version":    "v5.4.2",
+    "project_version":    "v5.4.2-dirty",
     "project_path":       "E:/ENV/ESP32_IDF/V5_4_2/v5.4.2/esp-idf/components/bootloader/subproject",
     "idf_path":           "E:/ENV/ESP32_IDF/V5_4_2/v5.4.2/esp-idf",
     "build_dir":          "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/bootloader",
@@ -11,7 +11,7 @@
     "app_elf":            "bootloader.elf",
     "app_bin":            "bootloader.bin",
     "build_type":         "flash_app",
-    "git_revision":       "v5.4.2",
+    "git_revision":       "v5.4.2-dirty",
     "target":             "esp32s3",
     "rev":                "",
     "min_rev":            "0",
