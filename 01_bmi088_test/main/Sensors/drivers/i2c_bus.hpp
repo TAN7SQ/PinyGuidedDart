@@ -34,11 +34,23 @@ struct DeviceConfig
 class I2CBus
 {
 public:
-    // 单例模式 - 获取总线实例
-    static I2CBus &get_instance(const BusConfig &config = default_config())
+    // 获取单例实例
+    static I2CBus &get_instance(const BusConfig &config = default_config());
+
+    // 初始化总线（必须在第一次使用前调用）
+    esp_err_t init(const BusConfig &config = default_config());
+
+    // 使用参数初始化
+    esp_err_t init(i2c_port_t port, int scl_pin, int sda_pin, uint32_t clk_speed_hz = 400000, bool enable_pullup = true,
+                   uint8_t glitch_ignore_cnt = 7)
     {
-        static I2CBus instance(config);
-        return instance;
+        BusConfig config{.port = port,
+                         .scl_pin = static_cast<gpio_num_t>(scl_pin),
+                         .sda_pin = static_cast<gpio_num_t>(sda_pin),
+                         .clk_speed_hz = clk_speed_hz,
+                         .enable_internal_pullup = enable_pullup,
+                         .glitch_ignore_cnt = glitch_ignore_cnt};
+        return init(config);
     }
 
     // 禁用拷贝和移动
@@ -47,25 +59,43 @@ public:
     I2CBus(I2CBus &&) = delete;
     I2CBus &operator=(I2CBus &&) = delete;
 
-    // 添加I2C设备
+    // === 设备管理 ===
     esp_err_t add_device(const DeviceConfig &dev_cfg, i2c_master_dev_handle_t &dev_handle);
-
-    // 移除I2C设备
     esp_err_t remove_device(i2c_master_dev_handle_t dev_handle);
 
-    // 扫描I2C总线上的设备
-    std::vector<uint8_t> scan_devices(uint8_t start_addr = 0x08, uint8_t end_addr = 0x77);
+    // === I2C传输封装 ===
 
-    // 检查特定地址是否有设备
+    // 发送数据（写入）
+    esp_err_t write_bytes(i2c_master_dev_handle_t dev_handle, const uint8_t *data, size_t data_len,
+                          uint32_t timeout_ms = 100);
+
+    // 接收数据（读取）
+    esp_err_t read_bytes(i2c_master_dev_handle_t dev_handle, uint8_t *buffer, size_t buffer_len,
+                         uint32_t timeout_ms = 100);
+
+    // 发送数据然后接收数据（先写后读）
+    esp_err_t write_then_read(i2c_master_dev_handle_t dev_handle, const uint8_t *write_data, size_t write_len,
+                              uint8_t *read_buffer, size_t read_len, uint32_t timeout_ms = 100);
+
+    // 写入单个字节（寄存器写入）
+    esp_err_t write_reg(i2c_master_dev_handle_t dev_handle, uint8_t reg_addr, uint8_t data, uint32_t timeout_ms = 100);
+
+    // 读取单个字节（寄存器读取）
+    esp_err_t read_reg(i2c_master_dev_handle_t dev_handle, uint8_t reg_addr, uint8_t &data, uint32_t timeout_ms = 100);
+
+    // 读取多个字节（连续寄存器读取）
+    esp_err_t read_regs(i2c_master_dev_handle_t dev_handle, uint8_t start_reg, uint8_t *buffer, size_t len,
+                        uint32_t timeout_ms = 100);
+
+    // === 总线操作 ===
+    std::vector<uint8_t> scan_devices(uint8_t start_addr = 0x08, uint8_t end_addr = 0x77);
     bool probe_device(uint8_t device_address);
 
-    // 获取总线句柄
+    // === 获取信息 ===
     i2c_master_bus_handle_t get_bus_handle() const
     {
         return bus_handle_;
     }
-
-    // 判断总线是否初始化
     bool is_initialized() const
     {
         return is_initialized_;
@@ -74,11 +104,10 @@ public:
     ~I2CBus();
 
 private:
-    // 显式构造函数
-    explicit I2CBus(const BusConfig &config = default_config());
-    explicit I2CBus(i2c_port_t port, gpio_num_t scl_pin, gpio_num_t sda_pin, uint32_t clk_speed_hz = 400000);
+    // 私有构造函数
+    explicit I2CBus(const BusConfig &config);
 
-    // 初始化总线
+    // 初始化总线内部实现
     esp_err_t init_bus(const BusConfig &config);
 
     // 默认配置
@@ -90,6 +119,7 @@ private:
             .sda_pin = GPIO_NUM_21,
             .clk_speed_hz = 400000,
             .enable_internal_pullup = true,
+            .glitch_ignore_cnt = 7,
         };
     }
 

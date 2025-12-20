@@ -10,13 +10,12 @@ namespace spi
 
 SPIBus &SPIBus::get_instance(const BusConfig &config)
 {
-    static SPIBus instance(config);
+    static SPIBus instance(config); // 唯一实例
     return instance;
 }
 
 SPIBus::SPIBus(const BusConfig &config) : bus_config_(config), host_(config.host_num)
 {
-    // 初始化总线
     if (init_bus(config) != ESP_OK) {
         ESP_LOGE(TAG, "SPI bus init failed!");
     }

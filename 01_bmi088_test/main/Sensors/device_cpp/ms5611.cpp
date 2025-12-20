@@ -83,7 +83,7 @@ esp_err_t MS5611::reset()
     }
 
     uint8_t cmd = MS5611_CMD_RESET;
-    esp_err_t ret = i2c_master_transmit(device_handle_, &cmd, 1, 100);
+    esp_err_t ret = i2c_bus_.write_reg(device_handle_, cmd, 1, 100);
 
     if (ret == ESP_OK) {
         vTaskDelay(pdMS_TO_TICKS(10)); // 等待复位完成
@@ -109,7 +109,7 @@ esp_err_t MS5611::read_calibration_coeffs()
         uint8_t cmd = MS5611_CMD_PROM_READ + (i * 2);
         uint8_t buffer[2] = {0};
 
-        esp_err_t ret = i2c_master_transmit_receive(device_handle_, &cmd, 1, buffer, sizeof(buffer), 200);
+        esp_err_t ret = i2c_bus_.write_then_read(device_handle_, &cmd, 1, buffer, sizeof(buffer), 200);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to read C%zu: %s (cmd: 0x%02X)", i + 1, esp_err_to_name(ret), cmd);
             return ret;
@@ -157,7 +157,7 @@ esp_err_t MS5611::read_adc(uint8_t convert_cmd, uint32_t &adc_data)
     }
 
     // 发送转换命令
-    esp_err_t ret = i2c_master_transmit(device_handle_, &convert_cmd, 1, 100);
+    esp_err_t ret = i2c_bus_.write_reg(device_handle_, convert_cmd, 1, 100);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to send convert command 0x%02X: %s", convert_cmd, esp_err_to_name(ret));
         return ret;
@@ -225,17 +225,17 @@ void MS5611::convert_raw_data(uint32_t d1, uint32_t d2, Data &data)
     int32_t C6 = calib_coeffs_[5]; // Temperature coefficient of the temperature
 
     // 使用64位计算避免溢出
-    int64_t dT = static_cast<int64_t>(d2) - (static_cast<int64_t>(C5) << 8);
-    int64_t TEMP = 2000 + ((dT * static_cast<int64_t>(C6)) >> 23);
+    int32_t dT = static_cast<int32_t>(d2) - (static_cast<int32_t>(C5) << 8);
+    int32_t TEMP = 2000 + ((dT * static_cast<int32_t>(C6)) >> 23);
 
-    int64_t OFF = (static_cast<int64_t>(C2) << 16) + ((static_cast<int64_t>(C4) * dT) >> 7);
-    int64_t SENS = (static_cast<int64_t>(C1) << 15) + ((static_cast<int64_t>(C3) * dT) >> 8);
+    int32_t OFF = (static_cast<int32_t>(C2) << 16) + ((static_cast<int32_t>(C4) * dT) >> 7);
+    int32_t SENS = (static_cast<int32_t>(C1) << 15) + ((static_cast<int32_t>(C3) * dT) >> 8);
 
     // 二阶温度补偿
     if (TEMP < 2000) {
-        int64_t T2 = (dT * dT) >> 31;
-        int64_t OFF2 = 61 * (TEMP - 2000) * (TEMP - 2000) / 16;
-        int64_t SENS2 = 29 * (TEMP - 2000) * (TEMP - 2000) / 16;
+        int32_t T2 = (dT * dT) >> 31;
+        int32_t OFF2 = 61 * (TEMP - 2000) * (TEMP - 2000) / 16;
+        int32_t SENS2 = 29 * (TEMP - 2000) * (TEMP - 2000) / 16;
 
         if (TEMP < -1500) {
             OFF2 += 17 * (TEMP + 1500) * (TEMP + 1500);
@@ -247,8 +247,7 @@ void MS5611::convert_raw_data(uint32_t d1, uint32_t d2, Data &data)
         SENS -= SENS2;
     }
 
-    // 计算最终压力
-    int64_t P = ((static_cast<int64_t>(d1) * SENS) >> 21) - OFF;
+    int32_t P = ((static_cast<int32_t>(d1) * SENS) >> 21) - OFF;
 
     // 转换为物理单位
     data.temperature = static_cast<double>(TEMP) / 100.0;

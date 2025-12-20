@@ -15,7 +15,7 @@ constexpr uint8_t MS5611_ADDR_ALT = 0x76;
 
 // MS5611命令
 constexpr uint8_t MS5611_CMD_RESET = 0x1E;
-constexpr uint8_t MS5611_CMD_PROM_READ = 0xA0;
+constexpr uint8_t MS5611_CMD_PROM_READ = 0xA2;
 constexpr uint8_t MS5611_CMD_ADC_READ = 0x00;
 
 // 转换命令（不同的过采样率）
