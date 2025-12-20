@@ -158,25 +158,6 @@ esp_err_t BMI088::read_gyroscope(Data &data)
     int16_t gyro_y = (int16_t)((gyro_data[3] << 8) | gyro_data[2]);
     int16_t gyro_z = (int16_t)((gyro_data[5] << 8) | gyro_data[4]);
 
-    // 滑动平均滤波
-    gyro_x_buf_[filter_idx_] = gyro_x;
-    gyro_y_buf_[filter_idx_] = gyro_y;
-    gyro_z_buf_[filter_idx_] = gyro_z;
-    filter_idx_ = (filter_idx_ + 1) % GYRO_FILTER_WINDOW;
-
-    // 求和平均
-    int32_t sum_x = 0, sum_y = 0, sum_z = 0;
-    for (size_t i = 0; i < GYRO_FILTER_WINDOW; i++) {
-        sum_x += gyro_x_buf_[i];
-        sum_y += gyro_y_buf_[i];
-        sum_z += gyro_z_buf_[i];
-    }
-
-    data.gyro_x = sum_x / GYRO_FILTER_WINDOW;
-    data.gyro_y = sum_y / GYRO_FILTER_WINDOW;
-    data.gyro_z = sum_z / GYRO_FILTER_WINDOW;
-
-    // 转换为 dps
     data.gyro_x = gyro_x;
     data.gyro_y = gyro_y;
     data.gyro_z = gyro_z;

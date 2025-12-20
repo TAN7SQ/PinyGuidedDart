@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "01_bmi088_test",
-    "project_version":    "b16a6ae-dirty",
+    "project_version":    "7db6cc8-dirty",
     "project_path":       "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test",
     "idf_path":           "E:/ENV/ESP32_IDF/V5_4_2/v5.4.2/esp-idf",
     "build_dir":          "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build",
@@ -1195,7 +1195,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [],
             "file": "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/build/esp-idf/main/libmain.a",
-            "sources": [ "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/main/main.cpp", "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/main/Sensors/drivers/spi_bus.cpp", "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/main/Sensors/device_cpp/bmi088.cpp" ],
+            "sources": [ "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/main/main.cpp", "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/main/Sensors/drivers/spi_bus.cpp", "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/main/Sensors/device_cpp/bmi088.cpp", "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/main/Sensors/device_cpp/ms5611.cpp", "E:/Coding/ESP32_project/ESP_IDF/01_bmi088_test/main/Sensors/drivers/i2c_bus.cpp" ],
             "include_dirs": [ "Sensors/drivers", "Sensors/device_cpp" ]
         },
         "mbedtls": {

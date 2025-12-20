@@ -13,6 +13,8 @@ set(
     # "Sensors/device_c/bmi088.c"
     "Sensors/drivers/spi_bus.cpp"
     "Sensors/device_cpp/bmi088.cpp"
+    "Sensors/device_cpp/ms5611.cpp"
+    "Sensors/drivers/i2c_bus.cpp"
     #"Sensors/MS5611/ms5611.c"
 )
 

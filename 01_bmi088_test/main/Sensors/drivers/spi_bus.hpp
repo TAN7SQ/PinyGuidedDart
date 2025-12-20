@@ -74,8 +74,8 @@ private:
 
     spi_host_device_t host_;
 
-    // 总线互斥锁（保证多设备访问安全）
     SemaphoreHandle_t bus_mutex_ = nullptr;
+
     bool is_bus_init_ = false;
 };
 

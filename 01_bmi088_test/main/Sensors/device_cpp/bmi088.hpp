@@ -106,13 +106,6 @@ private:
     spi_device_handle_t acc_handle_ = nullptr;
     spi_device_handle_t gyro_handle_ = nullptr;
 
-    // 陀螺仪滤波缓冲区
-    static constexpr size_t GYRO_FILTER_WINDOW = 5;
-    std::array<int16_t, GYRO_FILTER_WINDOW> gyro_x_buf_{0};
-    std::array<int16_t, GYRO_FILTER_WINDOW> gyro_y_buf_{0};
-    std::array<int16_t, GYRO_FILTER_WINDOW> gyro_z_buf_{0};
-    size_t filter_idx_{0};
-
     // 加速度计上次有效数据
     Data last_acc_data_{};
 
