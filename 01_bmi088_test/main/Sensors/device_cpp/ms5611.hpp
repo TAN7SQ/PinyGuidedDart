@@ -106,7 +106,7 @@ private:
     esp_err_t read_calibration_coeffs();
 
     // 读取ADC值
-    esp_err_t read_adc(uint8_t convert_cmd, uint32_t &adc_data);
+    esp_err_t read_reg(uint8_t convert_cmd, uint32_t &adc_data);
 
     // 发送命令
     esp_err_t send_command(uint8_t cmd);
@@ -139,7 +139,7 @@ private:
                                                MS5611_CMD_CONVERT_D2_4096};
 
     // OSR对应的延迟（单位：ms）
-    std::array<uint32_t, 5> osr_delays_ = {1, 2, 3, 5, 10};
+    std::array<uint32_t, 5> osr_delays_ = {3, 3, 3, 5, 10};
 };
 
 } // namespace sensor

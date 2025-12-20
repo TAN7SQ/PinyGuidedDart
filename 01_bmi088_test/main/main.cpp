@@ -79,7 +79,6 @@ extern "C" void app_main(void)
 
     // 初始化I2C总线
     i2c::I2CBus &i2c_bus = i2c::I2CBus::get_instance();
-    // i2c_bus.init();
 
     // 创建MS5611传感器实例
     sensor::MS5611 ms5611(i2c_bus, 0x77, sensor::OSR::OSR_2048);
@@ -94,7 +93,15 @@ extern "C" void app_main(void)
     ESP_LOGI(TAG, "MS5611 initialized successfully");
 
     while (1) {
+        sensor::MS5611::Data data;
+        ret = ms5611.read_data(data);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "MS5611 read data failed: %s", esp_err_to_name(ret));
+            continue;
+        }
 
-        vTaskDelay(pdMS_TO_TICKS(20));
+        ESP_LOGI(TAG, "%.2f,%ld", data.pressure_mbar, data.raw_d1);
+
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }

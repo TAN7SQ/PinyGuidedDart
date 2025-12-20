@@ -133,31 +133,31 @@ bool MS5611::is_calibration_valid() const
     }
 
     // 检查系数范围是否合理（根据MS5611数据手册）
-    if (calib_coeffs_[0] < 10000 || calib_coeffs_[0] > 20000)
+    if (calib_coeffs_[0] < 40000 || calib_coeffs_[0] > 48000)
         return false; // C1
-    if (calib_coeffs_[1] < 10000 || calib_coeffs_[1] > 20000)
+    if (calib_coeffs_[1] < 30000 || calib_coeffs_[1] > 38000)
         return false; // C2
-    if (calib_coeffs_[2] < 0 || calib_coeffs_[2] > 10000)
+    if (calib_coeffs_[2] < 2000 || calib_coeffs_[2] > 4000)
         return false; // C3
-    if (calib_coeffs_[3] < 0 || calib_coeffs_[3] > 10000)
+    if (calib_coeffs_[3] < 2000 || calib_coeffs_[3] > 4000)
         return false; // C4
-    if (calib_coeffs_[4] < 0 || calib_coeffs_[4] > 10000)
+    if (calib_coeffs_[4] < 20000 || calib_coeffs_[4] > 30000)
         return false; // C5
-    if (calib_coeffs_[5] < 0 || calib_coeffs_[5] > 10000)
+    if (calib_coeffs_[5] < 20000 || calib_coeffs_[5] > 30000)
         return false; // C6
 
     return true;
 }
 
 // 读取ADC值
-esp_err_t MS5611::read_adc(uint8_t convert_cmd, uint32_t &adc_data)
+esp_err_t MS5611::read_reg(uint8_t convert_cmd, uint32_t &adc_data)
 {
     if (!device_handle_) {
         return ESP_ERR_INVALID_STATE;
     }
 
     // 发送转换命令
-    esp_err_t ret = i2c_bus_.write_reg(device_handle_, convert_cmd, 1, 100);
+    esp_err_t ret = i2c_bus_.write_reg(device_handle_, convert_cmd, 1, 10);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to send convert command 0x%02X: %s", convert_cmd, esp_err_to_name(ret));
         return ret;
@@ -165,13 +165,14 @@ esp_err_t MS5611::read_adc(uint8_t convert_cmd, uint32_t &adc_data)
 
     // 等待转换完成（根据OSR）
     uint8_t osr_index = static_cast<uint8_t>(current_osr_);
-    vTaskDelay(pdMS_TO_TICKS(osr_delays_[osr_index]));
+    vTaskDelay(pdMS_TO_TICKS(10));
+    // vTaskDelay(pdMS_TO_TICKS(osr_delays_[osr_index]));
 
     // 读取ADC数据
     uint8_t read_cmd = MS5611_CMD_ADC_READ;
     uint8_t buffer[3] = {0};
 
-    ret = i2c_master_transmit_receive(device_handle_, &read_cmd, 1, buffer, sizeof(buffer), 200);
+    ret = i2c_bus_.write_then_read(device_handle_, &read_cmd, 1, buffer, sizeof(buffer), 200);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to read ADC data: %s", esp_err_to_name(ret));
         return ret;
@@ -193,14 +194,14 @@ esp_err_t MS5611::read_raw_data(uint32_t &d1, uint32_t &d2)
     uint8_t osr_index = static_cast<uint8_t>(current_osr_);
 
     // 读取压力(D1)
-    esp_err_t ret = read_adc(d1_convert_cmds_[osr_index], d1);
+    esp_err_t ret = read_reg(d1_convert_cmds_[osr_index], d1);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to read D1 (pressure)");
         return ret;
     }
 
     // 读取温度(D2)
-    ret = read_adc(d2_convert_cmds_[osr_index], d2);
+    ret = read_reg(d2_convert_cmds_[osr_index], d2);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to read D2 (temperature)");
         return ret;
@@ -224,18 +225,17 @@ void MS5611::convert_raw_data(uint32_t d1, uint32_t d2, Data &data)
     int32_t C5 = calib_coeffs_[4]; // Reference temperature
     int32_t C6 = calib_coeffs_[5]; // Temperature coefficient of the temperature
 
-    // 使用64位计算避免溢出
-    int32_t dT = static_cast<int32_t>(d2) - (static_cast<int32_t>(C5) << 8);
-    int32_t TEMP = 2000 + ((dT * static_cast<int32_t>(C6)) >> 23);
+    int64_t dT = static_cast<int32_t>(d2) - (static_cast<int32_t>(C5) << 8);
+    int64_t TEMP = 2000 + ((dT * static_cast<int32_t>(C6)) >> 23);
 
-    int32_t OFF = (static_cast<int32_t>(C2) << 16) + ((static_cast<int32_t>(C4) * dT) >> 7);
-    int32_t SENS = (static_cast<int32_t>(C1) << 15) + ((static_cast<int32_t>(C3) * dT) >> 8);
+    int64_t OFF = (static_cast<int32_t>(C2) << 16) + ((static_cast<int32_t>(C4) * dT) >> 7);
+    int64_t SENS = (static_cast<int32_t>(C1) << 15) + ((static_cast<int32_t>(C3) * dT) >> 8);
 
     // 二阶温度补偿
     if (TEMP < 2000) {
-        int32_t T2 = (dT * dT) >> 31;
-        int32_t OFF2 = 61 * (TEMP - 2000) * (TEMP - 2000) / 16;
-        int32_t SENS2 = 29 * (TEMP - 2000) * (TEMP - 2000) / 16;
+        int64_t T2 = (dT * dT) >> 31;
+        int64_t OFF2 = 61 * (TEMP - 2000) * (TEMP - 2000) / 16;
+        int64_t SENS2 = 29 * (TEMP - 2000) * (TEMP - 2000) / 16;
 
         if (TEMP < -1500) {
             OFF2 += 17 * (TEMP + 1500) * (TEMP + 1500);
@@ -263,11 +263,10 @@ esp_err_t MS5611::read_data(Data &data)
         return ESP_ERR_INVALID_STATE;
     }
 
-    uint32_t d1 = 0, d2 = 0;
-    esp_err_t ret = read_raw_data(d1, d2);
+    esp_err_t ret = read_raw_data(data.raw_d1, data.raw_d2);
 
     if (ret == ESP_OK) {
-        convert_raw_data(d1, d2, data);
+        convert_raw_data(data.raw_d1, data.raw_d2, data);
     }
 
     return ret;
