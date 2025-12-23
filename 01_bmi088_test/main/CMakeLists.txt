@@ -1,9 +1,9 @@
 # 组件要求
 set(
     my_requires
-    esp_driver_i2c
-    esp_driver_spi
-    esp_driver_gpio
+    console
+    driver
+    vfs
 )
 
 # 源文件
@@ -16,6 +16,7 @@ set(
     "Sensors/device_cpp/ms5611.cpp"
     "Sensors/drivers/i2c_bus.cpp"
     #"Sensors/MS5611/ms5611.c"
+
 )
 
 
@@ -27,6 +28,7 @@ set(
     "Sensors/drivers"
     "Sensors/device_cpp"
     #"Sensors/MS5611"
+    "mLog"
 )
 
 idf_component_register(SRCS ${SOURCES}

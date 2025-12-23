@@ -11,14 +11,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#define TAG "main"
-
-#define BMI088_HOST SPI2_HOST
-#define BMI088_CLK 13     // SPI时钟引脚
-#define BMI088_MOSI 12    // SPI主机输出引脚
-#define BMI088_MISO 11    // SPI主机输入引脚
-#define BMI088_CS_GYRO 10 // 陀螺仪片选引脚
-#define BMI088_CS_ACCEL 9 // 加速度计片选引脚
+#include "mlog.hpp"
 
 // extern "C" void app_main(void)
 // {
@@ -73,8 +66,20 @@
 //         vTaskDelay(pdMS_TO_TICKS(20));
 //     }
 // }
+
+namespace main
+{
+#define BMI088_HOST SPI2_HOST
+#define BMI088_CLK 13     // SPI时钟引脚
+#define BMI088_MOSI 12    // SPI主机输出引脚
+#define BMI088_MISO 11    // SPI主机输入引脚
+#define BMI088_CS_GYRO 10 // 陀螺仪片选引脚
+#define BMI088_CS_ACCEL 9 // 加速度计片选引脚
+
 extern "C" void app_main(void)
 {
+    mLog::changeLog();
+
     ESP_LOGI(TAG, "App start");
 
     // 初始化I2C总线
@@ -105,3 +110,4 @@ extern "C" void app_main(void)
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
+} // namespace main
