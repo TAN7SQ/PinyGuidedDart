@@ -69,6 +69,7 @@
 
 namespace main
 {
+
 #define BMI088_HOST SPI2_HOST
 #define BMI088_CLK 13     // SPI时钟引脚
 #define BMI088_MOSI 12    // SPI主机输出引脚
