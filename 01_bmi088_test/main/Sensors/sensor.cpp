@@ -502,7 +502,7 @@ esp_err_t SensorManager::read_all()
                 // 调用通用数据回调
                 if (data_callback_) {
                     data_callback_(entry.sensor->get_type(), entry.latest_data);
-                }
+                } 
             }
         }
     }
@@ -552,7 +552,7 @@ esp_err_t SensorManager::start_async_read(uint32_t interval_ms)
                                                 this,
                                                 configMAX_PRIORITIES - 2,
                                                 &async_task_handle_,
-                                                PRO_CPU_NUM // 通常放在PRO核心
+                                                0 // 通常放在PRO核心
     );
 
     if (result != pdPASS) {

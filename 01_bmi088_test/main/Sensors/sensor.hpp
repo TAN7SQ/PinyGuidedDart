@@ -16,7 +16,7 @@ enum class SensorType : uint8_t
 {
     BAROMETER = 0,    // 气压计 (MS5611)
     IMU_6AXIS = 1,    // 6轴IMU (BMI088)
-    IMU_9AXIS = 2,    // 9轴IMU (QMI8658)
+    MAG_3AXIS = 2,    // 3轴磁力计 (QMI5883)
     HIGH_G_ACCEL = 3, // 高g值加速度计 (ADXL375BCCZ)
     UNKNOWN = 255
 };
@@ -64,7 +64,7 @@ struct BMI088Config : public IMUConfig
     std::string to_string() const override;
 };
 
-// QMI8658配置 (待实现)
+// TODO:QMI8658配置 (待实现)
 struct QMI8658Config : public IMUConfig
 {
     uint8_t i2c_address = 0x6B;      // 默认I2C地址
@@ -73,7 +73,7 @@ struct QMI8658Config : public IMUConfig
     std::string to_string() const;
 };
 
-// ADXL375配置 (待实现)
+// TODO:ADXL375配置 (待实现)
 struct ADXL375Config : public SensorConfig
 {
     uint8_t i2c_address = 0x53;    // 默认I2C地址
@@ -134,7 +134,7 @@ public:
         float z = 0.0f;
         float magnitude = 0.0f;
 
-        void calculate_magnitude();
+        void calculate_magnitude(); // 计算幅值，用于归一化
         std::string to_string() const;
     };
 
@@ -149,7 +149,7 @@ public:
     Vector3i gyro_raw;        // 原始陀螺仪数据
     Vector3f accel_g;         // 加速度 (g)
     Vector3f gyro_dps;        // 角速度 (dps)
-    Vector3f magnetometer;    // 磁力计数据 (uT) - 9轴IMU
+    Vector3f magnetometer;    // 磁力计数据 (uT) - 3轴磁力计
     float temperature = 0.0f; // 温度
     uint64_t timestamp_us = 0;
 
@@ -227,7 +227,6 @@ public:
     virtual bool is_initialized() const = 0;
     virtual uint32_t get_update_rate_hz() const = 0;
 
-    // 配置相关
     virtual std::shared_ptr<SensorConfig> get_config() const = 0;
     virtual esp_err_t update_config(const SensorConfig &config) = 0;
 };
@@ -244,28 +243,22 @@ public:
     SensorManager(const SensorManager &) = delete;
     SensorManager &operator=(const SensorManager &) = delete;
 
-    // 初始化传感器管理器
     esp_err_t init();
 
-    // 添加传感器
     esp_err_t add_barometer(i2c::I2CBus &i2c_bus, const BarometerConfig &config);
     esp_err_t add_bmi088(spi::SPIBus &spi_bus, const BMI088Config &config);
     esp_err_t add_sensor(std::shared_ptr<ISensor> sensor);
 
-    // 移除传感器
     esp_err_t remove_sensor(SensorType type);
     esp_err_t remove_sensor(const std::string &name);
 
-    // 数据读取
     esp_err_t read_all();
     esp_err_t read_sensor(SensorType type, std::shared_ptr<ISensorData> &data);
     esp_err_t read_sensor(const std::string &name, std::shared_ptr<ISensorData> &data);
 
-    // 异步读取支持
     esp_err_t start_async_read(uint32_t interval_ms = 10);
     esp_err_t stop_async_read();
 
-    // 回调函数支持
     using DataCallback = std::function<void(SensorType type, const std::shared_ptr<ISensorData> &data)>;
     using AllDataCallback = std::function<void(const std::vector<std::shared_ptr<ISensorData>> &data)>;
 
@@ -273,17 +266,14 @@ public:
     void register_all_data_callback(AllDataCallback callback);
     void register_sensor_callback(SensorType type, DataCallback callback);
 
-    // 获取数据
     std::shared_ptr<ISensorData> get_latest_data(SensorType type) const;
     std::shared_ptr<ISensorData> get_latest_data(const std::string &name) const;
     std::vector<std::shared_ptr<ISensorData>> get_all_latest_data() const;
 
-    // 获取传感器
     std::shared_ptr<ISensor> get_sensor(SensorType type) const;
     std::shared_ptr<ISensor> get_sensor(const std::string &name) const;
     std::vector<std::shared_ptr<ISensor>> get_all_sensors() const;
 
-    // 状态查询
     bool is_sensor_present(SensorType type) const;
     bool is_sensor_initialized(SensorType type) const;
     bool is_async_mode() const
@@ -291,7 +281,6 @@ public:
         return async_mode_;
     }
 
-    // 统计信息
     struct Statistics
     {
         struct SensorStats
@@ -316,12 +305,10 @@ public:
     Statistics get_statistics() const;
     void reset_statistics();
 
-    // 配置管理
     esp_err_t update_sensor_config(SensorType type, const SensorConfig &config);
     esp_err_t enable_sensor(SensorType type, bool enable);
 
 private:
-    // 传感器容器
     struct SensorEntry
     {
         std::shared_ptr<ISensor> sensor;
@@ -335,7 +322,6 @@ private:
         bool should_read(uint64_t current_time_us) const;
     };
 
-    // 成员变量
     std::vector<SensorEntry> sensors_;
     mutable std::mutex mutex_;
 
@@ -348,7 +334,6 @@ private:
     DataCallback data_callback_ = nullptr;
     AllDataCallback all_data_callback_ = nullptr;
 
-    // 私有方法
     esp_err_t read_sensor_internal(SensorEntry &entry);
     void async_read_task(void *arg);
     static void async_task_wrapper(void *arg);
