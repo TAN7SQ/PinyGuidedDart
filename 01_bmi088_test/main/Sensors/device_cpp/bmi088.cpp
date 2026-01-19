@@ -19,7 +19,9 @@ BMI088::BMI088(const spi::DeviceConfig &dev_cfg_acc, const spi::DeviceConfig &de
 esp_err_t BMI088::init()
 {
     // 初始化陀螺仪
-    esp_err_t ret = init_gyroscope();
+    esp_err_t ret;
+
+    ret = init_gyroscope();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Gyro init failed");
         return ret;
@@ -90,12 +92,12 @@ esp_err_t BMI088::init_gyroscope()
     uint8_t chip_id = 0;
     esp_err_t ret = ESP_OK;
 
-    vTaskDelay(pdMS_TO_TICKS(10));
-    ret = spi_bus_.read_reg(gyro_handle_, GYRO_CHIP_ID, chip_id);
-    if (chip_id != 0x0F) {
-        ESP_LOGE(TAG, "GYRO chip ID error: 0x%02X", chip_id);
-        return ESP_FAIL;
-    }
+    // vTaskDelay(pdMS_TO_TICKS(10));
+    // ret = spi_bus_.read_reg(gyro_handle_, GYRO_CHIP_ID, chip_id);
+    // if (chip_id != 0x0F) {
+    //     ESP_LOGE(TAG, "GYRO chip ID error: 0x%02X", chip_id);
+    //     return ESP_FAIL;
+    // }
 
     // 软复位
     ret |= spi_bus_.write_reg(gyro_handle_, 0x14, 0xB6);
@@ -105,6 +107,17 @@ esp_err_t BMI088::init_gyroscope()
     ret |= spi_bus_.write_reg(gyro_handle_, GYRO_BANDWITH, 0x02); // 1000Hz输出
     ret |= spi_bus_.write_reg(gyro_handle_, GYRO_RANGE, 0x00);    // ±2000°/s量程
 
+    for (int i = 0; i < 4; i++) {
+        ret = spi_bus_.read_reg(gyro_handle_, GYRO_CHIP_ID, chip_id);
+        if (chip_id == 0x0F)
+            break;
+        vTaskDelay(pdMS_TO_TICKS(10));
+        ESP_LOGW(TAG, "Retry GYRO ID read (%d/3), current: 0x%02X", i + 1, chip_id);
+    }
+    if (chip_id != 0x0F) {
+        ESP_LOGE(TAG, "GYRO chip ID error: 0x%02X", chip_id);
+        return ESP_FAIL;
+    }
     ESP_LOGI(TAG, "BMI088 Gyroscope init success (ID: 0x%02X)", chip_id);
     return ret;
 }

@@ -9,14 +9,14 @@ namespace i2c
 {
 I2CBus &I2CBus::get_instance(const BusConfig &config)
 {
-    static I2CBus instance(config);
+    static I2CBus instance(config); // 单例模式，确保只有一个I2C总线实例
     return instance;
 }
 
 I2CBus::I2CBus(const BusConfig &config)
 {
     if (init_bus(config) != ESP_OK) {
-        ESP_LOGE(TAG, "SPI bus init failed!");
+        ESP_LOGE(TAG, "I2C bus init failed!");
     }
 }
 

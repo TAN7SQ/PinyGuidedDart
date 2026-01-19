@@ -16,6 +16,8 @@ set(
     "Sensors/device_cpp/ms5611.cpp"
     "Sensors/drivers/i2c_bus.cpp"
     #"Sensors/MS5611/ms5611.c"
+    "Device/WS2812/ws2812.cpp"
+    "Device/Beeper/beeper.cpp"
 
 )
 
@@ -29,6 +31,8 @@ set(
     "Sensors/device_cpp"
     #"Sensors/MS5611"
     "mLog"
+    "Device/WS2812"
+    "Device/Beeper"
 )
 
 idf_component_register(SRCS ${SOURCES}

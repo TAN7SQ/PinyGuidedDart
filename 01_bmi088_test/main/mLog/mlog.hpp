@@ -19,9 +19,8 @@
 
 namespace mLog
 {
-void changeLog(void)
+void changeLog(const int TARGET_BAUDRATE = 576000)
 {
-    const int TARGET_BAUDRATE = 576000;
 
     esp_log_level_set("*", ESP_LOG_NONE);
 
@@ -48,6 +47,6 @@ void changeLog(void)
 
     esp_log_level_set("*", ESP_LOG_INFO);
 
-    ESP_LOGI(TAG, "console baudrate: %d", TARGET_BAUDRATE);
+    ESP_LOGI(TAG, "\nconsole baudrate: %d", TARGET_BAUDRATE);
 }
 } // namespace mLog
