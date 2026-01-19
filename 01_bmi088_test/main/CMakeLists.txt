@@ -4,20 +4,21 @@ set(
     console
     driver
     vfs
+    nvs_flash
 )
 
 # 源文件
-set(
-    SOURCES
-    "main.cpp"
-    # "Sensors/device_c/bmi088.c"
-    "Sensors/drivers/spi_bus.cpp"
-    "Sensors/device_cpp/bmi088.cpp"
-    "Sensors/device_cpp/ms5611.cpp"
-    "Sensors/drivers/i2c_bus.cpp"
-    #"Sensors/MS5611/ms5611.c"
-    "Device/WS2812/ws2812.cpp"
-    "Device/Beeper/beeper.cpp"
+set(SOURCES
+            "main.cpp"
+            # "Sensors/device_c/bmi088.c"
+            "Sensors/drivers/spi_bus.cpp"
+            "Sensors/device_cpp/bmi088.cpp"
+            "Sensors/device_cpp/ms5611.cpp"
+            "Sensors/drivers/i2c_bus.cpp"
+            #"Sensors/MS5611/ms5611.c"
+            "Device/WS2812/ws2812.cpp"
+            "Device/Beeper/beeper.cpp"
+            "App/application.cpp"
 
 )
 
@@ -33,6 +34,7 @@ set(
     "mLog"
     "Device/WS2812"
     "Device/Beeper"
+    "App/include"
 )
 
 idf_component_register(SRCS ${SOURCES}

@@ -10,6 +10,14 @@
 #include <cstring>
 #include <memory>
 
+#define BMI088_HOST SPI2_HOST
+#define BMI088_CLK 33
+#define BMI088_MOSI 34
+#define BMI088_MISO 48
+#define BMI088_CS_GYRO 26
+#define BMI088_CS_ACCEL 47
+
+
 namespace spi
 {
 

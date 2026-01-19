@@ -9,7 +9,7 @@
 #include <iostream>
 #include <string>
 
-#define TAG "mlog"
+#define MLOG_TAG "mlog"
 
 /**
  * @brief 改变日志输出到UART0
@@ -47,6 +47,6 @@ void changeLog(const int TARGET_BAUDRATE = 576000)
 
     esp_log_level_set("*", ESP_LOG_INFO);
 
-    ESP_LOGI(TAG, "\nconsole baudrate: %d", TARGET_BAUDRATE);
+    ESP_LOGI(MLOG_TAG, "\nconsole baudrate: %d", TARGET_BAUDRATE);
 }
 } // namespace mLog
