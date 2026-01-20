@@ -1,10 +1,11 @@
 # 组件要求
 set(
-    my_requires
+    REQUIRES 
     console
     driver
     vfs
     nvs_flash
+    esp_adc
 )
 
 # 源文件
@@ -38,5 +39,5 @@ set(
 )
 
 idf_component_register(SRCS ${SOURCES}
-                    PRIV_REQUIRES ${my_requires}
+                    PRIV_REQUIRES ${REQUIRES}
                     INCLUDE_DIRS ${INCLUDE_DIRS})
