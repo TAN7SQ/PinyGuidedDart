@@ -17,6 +17,8 @@
 #include "beeper.hpp"
 #include "mlog.hpp"
 
+#include "tfcard.hpp"
+
 void led_task(void *pvParameters)
 {
 
@@ -50,7 +52,7 @@ void ws2812_task(void *pvParameters)
     led_strip_handle_t led_strip = configure_led();
     if (led_strip == NULL) {
         ESP_LOGE(Application::TAG, "LED strip configuration failed");
-        vTaskDelete(NULL);  
+        vTaskDelete(NULL);
         return;
     }
     while (1) {
@@ -117,6 +119,13 @@ void key_task(void *pvParameters)
     }
 }
 
+void tfcard_task(void *pvParameters)
+{
+    TF_Card tfCard;
+    tfCard.Initialize();
+    vTaskDelete(NULL);
+}
+
 Application::Application()
 {
 }
@@ -134,10 +143,14 @@ void Application::Initialize()
     xTaskCreatePinnedToCore(ms5611_task, "ms5611_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
     xTaskCreatePinnedToCore(key_task, "key_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
 
+    xTaskCreatePinnedToCore(tfcard_task, "tfcard_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
     Beeper beeper(GPIO_NUM_21);
 }
 
 void Application::Run()
 {
     ESP_LOGI(Application::TAG, "App run");
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
 }
