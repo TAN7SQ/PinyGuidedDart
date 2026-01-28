@@ -5,7 +5,7 @@ TF_Card::TF_Card()
 {
 }
 
-void TF_Card::Initialize()
+esp_err_t TF_Card::Initialize()
 {
     ESP_LOGI(SD_TAG, "TF_Card Initialize start");
     // 1. 挂载tf卡
@@ -29,10 +29,11 @@ void TF_Card::Initialize()
     ret = esp_vfs_fat_sdmmc_mount(mountPoint, &host, &slotConfig, &mountConfig, &card);
     if (ret != ESP_OK) {
         ESP_LOGE(SD_TAG, "Failed to mount SD card, err code: %d", ret);
-        return;
+        return ESP_FAIL;
     }
     ESP_LOGI(SD_TAG, "SD card mounted successfully");
     sdmmc_card_print_info(stdout, card);
+    return ESP_OK;
 }
 
 TF_Card::~TF_Card()

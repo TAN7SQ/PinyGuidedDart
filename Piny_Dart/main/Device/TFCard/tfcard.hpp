@@ -24,7 +24,7 @@ class TF_Card
 public:
     TF_Card();
     ~TF_Card();
-    void Initialize();
+    esp_err_t Initialize();
 
 private:
     sdmmc_card_t *card = NULL;

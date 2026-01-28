@@ -9,17 +9,26 @@
 #include "i2c_bus.hpp"
 #include "ms5611.hpp"
 
+#include "freertos/FreeRTOS.h"
+
 #include "driver/gpio.h"
 #include "esp_log.h"
-#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 
 #include "beeper.hpp"
 #include "mlog.hpp"
 
 #include "tfcard.hpp"
+#include "ws2812.hpp"
 
-void led_task(void *pvParameters)
+//************************************************************ */
+QueueHandle_t xLogQueue = NULL;
+SemaphoreHandle_t xTFCardMutex = NULL;
+//************************************************************ */
+
+void LedTask(void *pvParameters)
 {
 
     gpio_config_t gpio_cfg = {
@@ -35,38 +44,26 @@ void led_task(void *pvParameters)
         vTaskDelete(NULL); // 配置失败则删除当前任务
         return;
     }
-
-    while (1) {
-        gpio_set_level(GPIO_NUM_38, 0);
-        vTaskDelay(pdMS_TO_TICKS(500));
-        gpio_set_level(GPIO_NUM_38, 1);
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
-
-#include "ws2812.hpp"
-
-void ws2812_task(void *pvParameters)
-{
-    ESP_LOGI(Application::TAG, "ws2812_task start");
     led_strip_handle_t led_strip = configure_led();
     if (led_strip == NULL) {
         ESP_LOGE(Application::TAG, "LED strip configuration failed");
         vTaskDelete(NULL);
         return;
     }
+
     while (1) {
-        // ws2812b_rainbow(led_strip);
+        gpio_set_level(GPIO_NUM_38, 0);
         ws2812b_RGBOn(led_strip, 0, 70, 70, 70);
         ws2812b_RGBOn(led_strip, 1, 70, 70, 70);
         vTaskDelay(pdMS_TO_TICKS(500));
         ws2812b_Off(led_strip, 0);
         ws2812b_Off(led_strip, 1);
+        gpio_set_level(GPIO_NUM_38, 1);
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
-void ms5611_task(void *pvParameters)
+void SensorI2cTask(void *pvParameters)
 {
     ESP_LOGI(Application::TAG, "ms5611_task start");
     i2c::BusConfig i2c_bus_config = {
@@ -95,6 +92,13 @@ void ms5611_task(void *pvParameters)
     }
 }
 
+void SensorSpiTask(void *pvParameters)
+{
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
 void key_task(void *pvParameters)
 {
     gpio_config_t gpio_cfg = {
@@ -120,7 +124,7 @@ void key_task(void *pvParameters)
 }
 
 #include "servo.hpp"
-void servo_task(void *pvParameters)
+void ServoTask(void *pvParameters)
 {
     Servo mServo;
     mServo.Initialize();
@@ -129,10 +133,13 @@ void servo_task(void *pvParameters)
     }
 }
 
-void tfcard_task(void *pvParameters)
+void LogTask(void *pvParameters)
 {
-
-    vTaskDelete(NULL);
+    TF_Card *tfCard = (TF_Card *)pvParameters;
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(10));
+        // TODO: 设置队列，并异步地写入TF卡，句柄应该通过参数来传递
+    }
 }
 
 Application::Application()
@@ -146,20 +153,51 @@ Application::~Application()
 
 void Application::Initialize()
 {
-    ESP_LOGI(Application::TAG, "App start");
+    ESP_LOGI(Application::TAG, "Application开始初始化");
 
-    this->tfCard.Initialize();
+    /************************  ************************/
+    xLogQueue = xQueueCreate(LOG_QUEUE_LEN, LOG_DATA_MAX_LEN);
+    if (xLogQueue == NULL) {
+        ESP_LOGE(Application::TAG, "Failed to create log queue");
+        return;
+    }
+    xTFCardMutex = xSemaphoreCreateMutex();
+    if (xTFCardMutex == NULL) {
+        ESP_LOGE(Application::TAG, "Failed to create TF card mutex");
+        return;
+    }
 
-    xTaskCreatePinnedToCore(led_task, "led_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
-    xTaskCreatePinnedToCore(ws2812_task, "ws2812_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
-    xTaskCreatePinnedToCore(ms5611_task, "ms5611_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
+    /************************  ************************/
+    esp_err_t tf_ret = this->tfCard.Initialize();
+    if (tf_ret != ESP_OK) {
+        ESP_LOGE(Application::TAG, "TF card initialization failed: %s", esp_err_to_name(tf_ret));
+        return;
+    }
+    ESP_LOGI(Application::TAG, "TF card initialized successfully");
+
+    /************************  ************************/
+    LogTaskParams_t log_task_params = {
+        .tf_card_ptr = &this->tfCard, //
+        .log_queue = xLogQueue        //
+    };
+    if (xTaskCreatePinnedToCore(LogTask,              //
+                                "log_task",           //
+                                4096,                 //
+                                &log_task_params,     //
+                                tskIDLE_PRIORITY + 1, //
+                                NULL,                 //
+                                1) != pdPASS) {       //
+        ESP_LOGE(Application::TAG, "Failed to create log task");
+        return;
+    }
+
+    /************************ 第四步：创建其他外设任务 ************************/
+    xTaskCreatePinnedToCore(LedTask, "led_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
     xTaskCreatePinnedToCore(key_task, "key_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
-    xTaskCreatePinnedToCore(servo_task, "servo_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
+    xTaskCreatePinnedToCore(SensorI2cTask, "SensorI2cTask", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
+    xTaskCreatePinnedToCore(ServoTask, "servo_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
 
-    xTaskCreatePinnedToCore(tfcard_task, "tfcard_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
-
-    // vTaskDelay(pdMS_TO_TICKS(10));
-    // Beeper beeper(GPIO_NUM_21);
+    ESP_LOGI(Application::TAG, "All tasks created successfully, Application initialized");
 }
 
 void Application::Run()
