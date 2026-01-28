@@ -123,7 +123,7 @@ void key_task(void *pvParameters)
 void servo_task(void *pvParameters)
 {
     Servo mServo;
-    // mServo.Initialize();
+    mServo.Initialize();
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
