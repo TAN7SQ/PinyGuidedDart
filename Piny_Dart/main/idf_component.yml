@@ -16,3 +16,4 @@ dependencies:
   #   public: true
   espressif/led_strip: ^3.0.2
   hayschan/buzzer: ^1.0.0
+  espressif/servo: ^0.1.0

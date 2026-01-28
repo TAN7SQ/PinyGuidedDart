@@ -8,6 +8,7 @@ public:
     {
         buzzer_init(pin);
         playmusic();
+        ESP_LOGI("Beeper", "Beeper initialized");
     }
     void play(piano_note_t note, uint32_t duration)
     {
@@ -15,18 +16,16 @@ public:
     }
     void playmusic(void)
     {
-        // Mavic 3 Pro 开机音效：下行三音和弦 G4 → E4 → C4
         piano_note_t dji_boot_notes[] = {
             NOTE_C5, //
             NOTE_E5, //
             NOTE_G5  //
         };
 
-        // 每个音符的持续时间（秒）
         float note_loud_time[] = {
-            0.35, // G4 稍长
-            0.22, // E4 中等
-            0.45  // C4 收尾延长，增加辨识度
+            0.35, 
+            0.22, 
+            0.45  
         };
 
         uint8_t melody_len = sizeof(dji_boot_notes) / sizeof(dji_boot_notes[0]);
@@ -35,7 +34,6 @@ public:
             buzzer(dji_boot_notes[i], 7000, note_loud_time[i], 0.02, 1);
         }
 
-        // 播放完毕后关闭蜂鸣器
         ledc_set_duty(BUZZER_TIMER_SPEED_MODE, BUZZER_CHANNEL_NUM, 0);
         ledc_update_duty(BUZZER_TIMER_SPEED_MODE, BUZZER_CHANNEL_NUM);
     }

@@ -119,13 +119,25 @@ void key_task(void *pvParameters)
     }
 }
 
+#include "servo.hpp"
+void servo_task(void *pvParameters)
+{
+    Servo mServo;
+    // mServo.Initialize();
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
 void tfcard_task(void *pvParameters)
 {
+
     vTaskDelete(NULL);
 }
 
 Application::Application()
 {
+    ESP_LOGI(Application::TAG, "App start");
 }
 
 Application::~Application()
@@ -142,9 +154,12 @@ void Application::Initialize()
     xTaskCreatePinnedToCore(ws2812_task, "ws2812_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
     xTaskCreatePinnedToCore(ms5611_task, "ms5611_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
     xTaskCreatePinnedToCore(key_task, "key_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
+    xTaskCreatePinnedToCore(servo_task, "servo_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
 
     xTaskCreatePinnedToCore(tfcard_task, "tfcard_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
-    Beeper beeper(GPIO_NUM_21);
+
+    // vTaskDelay(pdMS_TO_TICKS(10));
+    // Beeper beeper(GPIO_NUM_21);
 }
 
 void Application::Run()

@@ -9,6 +9,16 @@ dependencies:
       registry_url: https://components.espressif.com/
       type: service
     version: 3.0.2
+  espressif/servo:
+    component_hash: 309c787e48224255fad458cfd9ab86ea53f0fdad1c5e4f6f0c50309990b17108
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.4'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 0.1.0
   hayschan/buzzer:
     component_hash: ed8b35d8d2d662379010dd44624e3d0ac88ec9027a99f1091663dda821f3051d
     dependencies:
@@ -25,8 +35,9 @@ dependencies:
     version: 5.4.2
 direct_dependencies:
 - espressif/led_strip
+- espressif/servo
 - hayschan/buzzer
 - idf
-manifest_hash: 8c77899434b06fb19cbbbd50f16404f83a7197f3404acb8d5e59b7e14257d333
+manifest_hash: 4cddb90a0fe52a4376a8963c66f360543abae2924e71813a92f4a9c64b30aa44
 target: esp32s3
 version: 2.0.0
