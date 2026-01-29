@@ -8,7 +8,7 @@
 namespace sensor
 {
 
-// ==================== SensorConfig 实现 ====================
+// ========================================
 std::string SensorConfig::to_string() const
 {
     char buffer[128];
@@ -20,8 +20,8 @@ std::string SensorConfig::to_string() const
     case SensorType::IMU_6AXIS:
         type_str = "IMU_6AXIS";
         break;
-    case SensorType::IMU_9AXIS:
-        type_str = "IMU_9AXIS";
+    case SensorType::MAG_3AXIS:
+        type_str = "MAG_3AXIS";
         break;
     case SensorType::HIGH_G_ACCEL:
         type_str = "HIGH_G_ACCEL";
@@ -502,7 +502,7 @@ esp_err_t SensorManager::read_all()
                 // 调用通用数据回调
                 if (data_callback_) {
                     data_callback_(entry.sensor->get_type(), entry.latest_data);
-                } 
+                }
             }
         }
     }

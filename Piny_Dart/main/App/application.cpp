@@ -24,8 +24,14 @@
 #include "ws2812.hpp"
 
 //************************************************************ */
-QueueHandle_t xLogQueue = NULL;
-SemaphoreHandle_t xTFCardMutex = NULL;
+#define LOG_DATA_MAX_LEN 256
+#define LOG_QUEUE_LEN 10
+// QueueHandle_t xLogQueue = NULL;
+
+#define SENSOR_DATA_MAX_LEN 256
+#define SENSOR_QUEUE_LEN 10
+// QueueHandle_t xSensorQueue = NULL;
+// SemaphoreHandle_t xTFCardMutex = NULL;
 //************************************************************ */
 
 void LedTask(void *pvParameters)
@@ -94,12 +100,64 @@ void SensorI2cTask(void *pvParameters)
 
 void SensorSpiTask(void *pvParameters)
 {
+    QueueHandle_t xSensorQueue = (QueueHandle_t)pvParameters;
+
+    spi::BusConfig spi_bus_config = {
+        .host_num = SPI1_HOST,
+        .sclk_pin = GPIO_NUM_12, //
+        .mosi_pin = GPIO_NUM_13, //
+        .miso_pin = GPIO_NUM_14, //
+    };
+    spi::SPIBus &spiBus = spi::SPIBus::get_instance(spi_bus_config);
+
+    spi::DeviceConfig bmi088_acc_cfg = {
+        .clock_speed_hz = 1 * 1000 * 1000,
+        .cs_pin = GPIO_NUM_15,
+    };
+    spi::DeviceConfig bmi088_gyro_cfg = {
+        .clock_speed_hz = 1 * 1000 * 1000,
+        .cs_pin = GPIO_NUM_16,
+    };
+
+    sensor::BMI088 bmi088(bmi088_acc_cfg, bmi088_gyro_cfg);
+    esp_err_t ret = bmi088.init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(Application::TAG, "BMI088 initialization failed: %s", esp_err_to_name(ret));
+        vTaskDelete(NULL);
+        return;
+    }
+    while (1) {
+        sensor::BMI088::Data data;
+        ret = bmi088.read_data(data);
+        if (ret != ESP_OK) {
+            ESP_LOGE(Application::TAG, "BMI088 read data failed: %s", esp_err_to_name(ret));
+            continue;
+        }
+        // 发送队列
+        // ESP_LOGI(Application::TAG,
+        //          "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f",
+        //          data.acc_x_g,
+        //          data.acc_y_g,
+        //          data.acc_z_g,
+        //          data.gyro_x_dps,
+        //          data.gyro_y_dps,
+        //          data.gyro_z_dps);
+
+        // TODO:发送数据到主机
+        xQueueSend(xSensorQueue, &data, portMAX_DELAY);
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+// send sensor and log data to host pc
+void HostPCTask(void *pvParameters)
+{
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
-void key_task(void *pvParameters)
+void KeyTask(void *pvParameters)
 {
     gpio_config_t gpio_cfg = {
         .pin_bit_mask = 1ULL << GPIO_NUM_35,
@@ -124,7 +182,7 @@ void key_task(void *pvParameters)
 }
 
 #include "servo.hpp"
-void ServoTask(void *pvParameters)
+void ControlTask(void *pvParameters)
 {
     Servo mServo;
     mServo.Initialize();
@@ -133,9 +191,11 @@ void ServoTask(void *pvParameters)
     }
 }
 
+// 异步记录日志，同时使用串口发送、http发送
 void LogTask(void *pvParameters)
 {
     TF_Card *tfCard = (TF_Card *)pvParameters;
+    tfCard->Initialize();
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(10));
         // TODO: 设置队列，并异步地写入TF卡，句柄应该通过参数来传递
@@ -153,16 +213,18 @@ Application::~Application()
 
 void Application::Initialize()
 {
-    ESP_LOGI(Application::TAG, "Application开始初始化");
+    ESP_LOGI(Application::TAG, "Application");
 
     /************************  ************************/
-    xLogQueue = xQueueCreate(LOG_QUEUE_LEN, LOG_DATA_MAX_LEN);
-    if (xLogQueue == NULL) {
-        ESP_LOGE(Application::TAG, "Failed to create log queue");
+    this->xLogQueue = xQueueCreate(LOG_QUEUE_LEN, LOG_DATA_MAX_LEN);
+    this->xSpiSensorQueue = xQueueCreate(SENSOR_QUEUE_LEN, SENSOR_DATA_MAX_LEN);
+    if (this->xSpiSensorQueue == NULL || this->xLogQueue == NULL) {
+        ESP_LOGE(Application::TAG, "Failed to create sensor queue");
         return;
     }
-    xTFCardMutex = xSemaphoreCreateMutex();
-    if (xTFCardMutex == NULL) {
+    //************************************************************ */
+    this->xTFCardMutex = xSemaphoreCreateMutex();
+    if (this->xTFCardMutex == NULL) {
         ESP_LOGE(Application::TAG, "Failed to create TF card mutex");
         return;
     }
@@ -178,7 +240,7 @@ void Application::Initialize()
     /************************  ************************/
     LogTaskParams_t log_task_params = {
         .tf_card_ptr = &this->tfCard, //
-        .log_queue = xLogQueue        //
+        .log_queue = this->xLogQueue  //
     };
     if (xTaskCreatePinnedToCore(LogTask,              //
                                 "log_task",           //
@@ -191,11 +253,16 @@ void Application::Initialize()
         return;
     }
 
-    /************************ 第四步：创建其他外设任务 ************************/
+    /************************  ************************/
     xTaskCreatePinnedToCore(LedTask, "led_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
-    xTaskCreatePinnedToCore(key_task, "key_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
-    xTaskCreatePinnedToCore(SensorI2cTask, "SensorI2cTask", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
-    xTaskCreatePinnedToCore(ServoTask, "servo_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
+    xTaskCreatePinnedToCore(KeyTask, "key_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
+
+    xTaskCreatePinnedToCore(SensorI2cTask, "SensorI2cTask", 4096, NULL, tskIDLE_PRIORITY + 2, NULL, 0);
+    xTaskCreatePinnedToCore(
+        SensorSpiTask, "SensorSpiTask", 4096, &this->xSpiSensorQueue, tskIDLE_PRIORITY + 2, NULL, 0);
+
+    xTaskCreatePinnedToCore(HostPCTask, "HostPCTask", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
+    xTaskCreatePinnedToCore(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
 
     ESP_LOGI(Application::TAG, "All tasks created successfully, Application initialized");
 }

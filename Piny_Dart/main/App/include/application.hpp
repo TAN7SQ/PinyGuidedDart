@@ -16,11 +16,6 @@
 
 #include <iostream>
 
-// 日志数据的最大长度
-#define LOG_DATA_MAX_LEN 256
-// 日志队列的缓存长度
-#define LOG_QUEUE_LEN 10
-
 extern QueueHandle_t xLogQueue;
 extern SemaphoreHandle_t xTFCardMutex;
 
@@ -37,6 +32,15 @@ class Application
 {
 public:
     static constexpr const char *TAG = "Application";
+
+    QueueHandle_t xSpiSensorQueue = NULL;
+    QueueHandle_t xI2cSensorQueue = NULL;
+    QueueHandle_t xLogQueue = NULL;
+    QueueHandle_t xRecvPCQueue = NULL;
+    QueueHandle_t xSendPCQueue = NULL;
+
+    SemaphoreHandle_t xTFCardMutex = NULL;
+
     static Application &GetInstance()
     {
         static Application instance;

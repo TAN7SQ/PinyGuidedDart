@@ -29,6 +29,9 @@ set(DEVICE_SOURCES
 # App模块源文件
 set(APP_SOURCES
     "App/application.cpp"
+    "App/control.cpp"
+    "App/hostpc.cpp"
+
 )
 
 # 合并所有源文件

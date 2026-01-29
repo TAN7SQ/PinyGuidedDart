@@ -17,7 +17,6 @@
 #define BMI088_CS_GYRO 26
 #define BMI088_CS_ACCEL 47
 
-
 namespace spi
 {
 
@@ -33,7 +32,7 @@ struct BusConfig
 
 struct DeviceConfig
 {
-    uint16_t clock_speed_hz;
+    int clock_speed_hz;
     gpio_num_t cs_pin;
     uint8_t mode = 3;
     uint8_t cs_ena_pretrans = 4;
