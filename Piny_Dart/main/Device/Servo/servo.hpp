@@ -34,6 +34,13 @@ servo_channel_t servo_handle = {
 
 */
 
+struct ServoLimit
+{
+    uint16_t min_us;
+    uint16_t max_us;
+    uint16_t deadband_us;
+};
+
 class Servo
 {
 public:
@@ -66,12 +73,30 @@ private:
     static constexpr uint32_t MIN_US = 500;
     static constexpr uint32_t MAX_US = 2500;
 
-    static constexpr gpio_num_t PINS[4] = {
+    static constexpr gpio_num_t PINS[] = {
         GPIO_NUM_13,
         GPIO_NUM_14,
         GPIO_NUM_15,
         GPIO_NUM_16,
+        GPIO_NUM_17,
+        GPIO_NUM_18,
+        GPIO_NUM_3,
+        // GPIO_NUM_41,
     };
+
+    static constexpr size_t NUM_SERVO = sizeof(PINS) / sizeof(PINS[0]);
+
+    static constexpr ServoLimit limits[] = {
+        {600, 2400, 10}, // LF0
+        {600, 2400, 10}, // LF1
+        {550, 2450, 12}, // RF0
+        {550, 2450, 12}, // RF1
+        {500, 2500, 15}, // LB0
+        {500, 2500, 15}, // LB1
+        {500, 2500, 15}, // RB0
+        // {500, 2500, 15}, // RB1  // FIXME：发现好像如果使用8个，RMT会出问题
+    };
+    uint32_t last_pulse_us[NUM_SERVO] = {0};
 
     uint32_t us_to_duty(uint32_t us);
 };
