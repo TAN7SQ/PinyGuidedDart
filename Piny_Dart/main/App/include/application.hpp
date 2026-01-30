@@ -33,12 +33,6 @@ class Application
 public:
     static constexpr const char *TAG = "Application";
 
-    QueueHandle_t xSpiSensorQueue = NULL;
-    QueueHandle_t xI2cSensorQueue = NULL;
-    QueueHandle_t xLogQueue = NULL;
-    QueueHandle_t xRecvPCQueue = NULL;
-    QueueHandle_t xSendPCQueue = NULL;
-
     SemaphoreHandle_t xTFCardMutex = NULL;
 
     static Application &GetInstance()
@@ -55,6 +49,12 @@ public:
     TF_Card tfCard;
 
 private:
+    QueueHandle_t xSpiSensorQueue = NULL;
+    QueueHandle_t xI2cSensorQueue = NULL;
+    QueueHandle_t xLogQueue = NULL;
+    QueueHandle_t xRecvPCQueue = NULL;
+    QueueHandle_t xSendPCQueue = NULL;
+
     Application();
     ~Application();
 };

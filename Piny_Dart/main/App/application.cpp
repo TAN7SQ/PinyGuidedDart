@@ -103,7 +103,7 @@ void SensorSpiTask(void *pvParameters)
     QueueHandle_t xSensorQueue = (QueueHandle_t)pvParameters;
 
     spi::BusConfig spi_bus_config = {
-        .host_num = SPI1_HOST,
+        .host_num = SPI2_HOST,
         .sclk_pin = GPIO_NUM_12, //
         .mosi_pin = GPIO_NUM_13, //
         .miso_pin = GPIO_NUM_14, //
@@ -221,8 +221,6 @@ Application::~Application()
 void Application::Initialize()
 {
     ESP_LOGI(Application::TAG, "Application");
-    Beeper beeper(GPIO_NUM_21);
-    
 
     /************************  ************************/
     this->xLogQueue = xQueueCreate(LOG_QUEUE_LEN, LOG_DATA_MAX_LEN);
@@ -272,11 +270,12 @@ void Application::Initialize()
     xTaskCreatePinnedToCore(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
 
     ESP_LOGI(Application::TAG, "All tasks created successfully, Application initialized");
-
 }
 
 void Application::Run()
 {
+    Beeper beeper(GPIO_NUM_21);
+    beeper.play_boot_music();
     ESP_LOGI(Application::TAG, "App run");
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));

@@ -29,8 +29,9 @@ MS5611::~MS5611()
 esp_err_t MS5611::init()
 {
     if (!i2c_bus_.is_initialized()) {
-        ESP_LOGE(TAG, "I2C bus not initialized");
-        return ESP_ERR_INVALID_STATE;
+        i2c_bus_.init();
+        // ESP_LOGE(TAG, "I2C bus not initialized");
+        // return ESP_ERR_INVALID_STATE;
     }
 
     // 添加I2C设备

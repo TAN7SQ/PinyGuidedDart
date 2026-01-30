@@ -1,39 +1,24 @@
 #ifndef __BEEPER_HPP__
 #define __BEEPER_HPP__
-#include "buzzer.h"
+
+#include "driver/gpio.h"
+#include "driver/rmt_tx.h"
+#include "esp_log.h"
+
 class Beeper
 {
 public:
-    Beeper(gpio_num_t pin)
-    {
-        buzzer_init(pin);
-        playmusic();
-        ESP_LOGI("Beeper", "Beeper initialized");
-        ledc_timer_resume(BUZZER_TIMER_SPEED_MODE, BUZZER_TIMER_SOURCE);
-    }
-    void play(piano_note_t note, uint32_t duration)
-    {
-        buzzer(note, duration, 1, 1, 5);
-    }
-    void playmusic(void)
-    {
-        piano_note_t dji_boot_notes[] = {
-            NOTE_C5, //
-            NOTE_E5, //
-            NOTE_G5  //
-        };
+    explicit Beeper(gpio_num_t pin);
+    ~Beeper();
 
-        float note_loud_time[] = {0.35, 0.22, 0.45};
+    void play(float freq_hz, uint32_t duration_ms);
+    void play_boot_music();
 
-        uint8_t melody_len = sizeof(dji_boot_notes) / sizeof(dji_boot_notes[0]);
+private:
+    static constexpr const char *TAG = "BEEPER";
 
-        for (uint8_t i = 0; i < melody_len; i++) {
-            buzzer(dji_boot_notes[i], 7000, note_loud_time[i], 0.02, 1);
-        }
-
-        ledc_set_duty(BUZZER_TIMER_SPEED_MODE, BUZZER_CHANNEL_NUM, 0);
-        ledc_update_duty(BUZZER_TIMER_SPEED_MODE, BUZZER_CHANNEL_NUM);
-    }
+    rmt_channel_handle_t tx_channel = nullptr;
+    rmt_encoder_handle_t encoder = nullptr;
 };
 
 #endif

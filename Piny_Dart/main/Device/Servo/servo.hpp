@@ -3,8 +3,10 @@
 
 #include <iostream>
 
-#include "iot_servo.h"
+#include "driver/gpio.h"
+#include "driver/ledc.h"
 #include <cstdint>
+
 /*
 
 servo_channel_t servo_handle = {
@@ -41,27 +43,32 @@ public:
         LF1,
         RF0,
         RF1,
-
-        LB0,
-        LB1,
-        RB0,
-        RB1,
-
-        ALL = 8,
+        ALL
     };
 
-    static constexpr const char *TAG = "PWM";
     Servo();
-    ~Servo();
-
-    esp_err_t Initialize(); // 舵机运动到初始位置
-    esp_err_t SetAngle(ServoCH_e Servo, int angle);
-    esp_err_t ReadAngle(ServoCH_e Servo, float &angle);
+    esp_err_t Initialize();
+    esp_err_t SetAngle(ServoCH_e ch, int angle);
 
 private:
-    ledc_timer_t timerCh;
-    servo_channel_t channels;
-    uint8_t MaxChNum;
+    static constexpr const char *TAG = "SERVO";
+
+    static constexpr ledc_timer_t TIMER = LEDC_TIMER_2;
+    static constexpr ledc_mode_t MODE = LEDC_LOW_SPEED_MODE;
+    static constexpr ledc_timer_bit_t RES = LEDC_TIMER_10_BIT;
+
+    static constexpr uint32_t SERVO_FREQ = 50;
+    static constexpr uint32_t MIN_US = 500;
+    static constexpr uint32_t MAX_US = 2500;
+
+    static constexpr gpio_num_t PINS[4] = {
+        GPIO_NUM_13,
+        GPIO_NUM_14,
+        GPIO_NUM_15,
+        GPIO_NUM_16,
+    };
+
+    uint32_t us_to_duty(uint32_t us);
 };
 
 #endif

@@ -7,11 +7,10 @@ const uint16_t notes[] = {0,    31,   33,   35,   37,   39,   41,   44,   46,   
                           932,  988,  1047, 1109, 1175, 1245, 1319, 1397, 1480, 1568, 1661, 1760, 1865, 1976, 2093,
                           2217, 2349, 2489, 2637, 2794, 2960, 3136, 3322, 3520, 3729, 3951, 4186, 4435, 4699, 4978};
 
-ledc_timer_config_t ledc_timer;
-ledc_channel_config_t ledc_channel;
-
 esp_err_t buzzer_init(int buzzerPin)
 {
+    ledc_timer_config_t ledc_timer;
+    ledc_channel_config_t ledc_channel;
     ledc_timer.duty_resolution = BUZZER_TIMER_DUTY_RES; // resolution of PWM duty
     ledc_timer.freq_hz =
         notes[BUZZER_TIMER_FREQ_DEFAULT_KEY_NUM];    // frequency of PWM signal, max:5000, when resolution is 13 bits.

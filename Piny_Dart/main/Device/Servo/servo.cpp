@@ -3,92 +3,71 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "driver/gpio.h"
+#include "esp_err.h"
 #include "esp_log.h"
-
-#include <cstdint>
 
 Servo::Servo()
 {
-    ESP_LOGI(TAG, "Servo init");
-    servo_channel_t servo_handle = {
-        .servo_pin =
-            {
-                GPIO_NUM_13, // LF0
-                GPIO_NUM_14, // LF1
-                GPIO_NUM_15, // RF0
-                GPIO_NUM_16, // RF1
-
-                // GPIO_NUM_17, // LB0
-                // GPIO_NUM_18, // LB1
-                // GPIO_NUM_3,  // RB0
-                // GPIO_NUM_41, // RB1
-            },
-        .ch =
-            {
-                LEDC_CHANNEL_0,
-                LEDC_CHANNEL_1,
-                LEDC_CHANNEL_2,
-                LEDC_CHANNEL_3,
-                // LEDC_CHANNEL_4,
-                // LEDC_CHANNEL_5,
-                // LEDC_CHANNEL_6,
-                // LEDC_CHANNEL_7,
-            },
+    ledc_timer_config_t timer = {
+        .speed_mode = MODE,
+        .duty_resolution = RES,
+        .timer_num = TIMER,
+        .freq_hz = SERVO_FREQ,
+        .clk_cfg = LEDC_AUTO_CLK,
     };
-    MaxChNum = 4;
+    ESP_ERROR_CHECK(ledc_timer_config(&timer));
 
-    servo_config_t servo_cfg = {
-        .max_angle = 180,
-        .min_width_us = 500,
-        .max_width_us = 2500,
-        .freq = 50,
-        .timer_number = LEDC_TIMER_0,
-        .channels = servo_handle,
-        .channel_number = 4,
-    };
+    for (int i = 0; i < 4; i++) {
+        ledc_channel_config_t ch = {
+            .gpio_num = PINS[i],
+            .speed_mode = MODE,
+            .channel = static_cast<ledc_channel_t>(i),
+            .timer_sel = TIMER,
+            .duty = us_to_duty(1500),
+            .hpoint = 0,
+        };
+        ESP_ERROR_CHECK(ledc_channel_config(&ch));
+    }
 
-    esp_err_t err = iot_servo_init(LEDC_LOW_SPEED_MODE, &servo_cfg);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "init low speed timer 2 failed %s", esp_err_to_name(err));
+    ESP_LOGI(TAG, "Servo driver initialized");
+}
+
+uint32_t Servo::us_to_duty(uint32_t us)
+{
+    uint32_t period_us = 1'000'000 / SERVO_FREQ;
+    uint32_t max_duty = (1 << RES) - 1;
+    return (us * max_duty) / period_us;
+}
+
+esp_err_t Servo::SetAngle(ServoCH_e ch, int angle)
+{
+    if (angle < 0)
+        angle = 0;
+    if (angle > 180)
+        angle = 180;
+
+    uint32_t pulse = MIN_US + (MAX_US - MIN_US) * angle / 180;
+    uint32_t duty = us_to_duty(pulse);
+
+    if (ch == ALL) {
+        for (int i = 0; i < 4; i++) {
+            ledc_set_duty(MODE, (ledc_channel_t)i, duty);
+            ledc_update_duty(MODE, (ledc_channel_t)i);
+        }
     }
     else {
-        ESP_LOGI(TAG, "init low speed timer 2 success");
+        ledc_set_duty(MODE, (ledc_channel_t)ch, duty);
+        ledc_update_duty(MODE, (ledc_channel_t)ch);
     }
+    return ESP_OK;
 }
 
 esp_err_t Servo::Initialize()
 {
-    esp_err_t ret = ESP_OK;
-    uint16_t calibration_value_0 = 30;
-    uint16_t calibration_value_180 = 195;
-    for (int i = calibration_value_0; i <= calibration_value_180; i += 1) {
-        for (uint8_t ch = 0; ch < MaxChNum; ch++)
-            iot_servo_write_angle(LEDC_LOW_SPEED_MODE, ch, i);
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+    for (int a = 30; a <= 180; a++) {
+        SetAngle(ALL, a);
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
-    // Return to the initial position
-    for (uint8_t ch = 0; ch < MaxChNum; ch++)
-        ret |= iot_servo_write_angle(LEDC_LOW_SPEED_MODE, ch, calibration_value_0);
-    return ret;
-}
-
-esp_err_t Servo::SetAngle(ServoCH_e Servo, int angle)
-{
-    if (Servo >= MaxChNum || Servo >= ALL)
-        return ESP_ERR_INVALID_ARG;
-    if (Servo == ALL) {
-        for (uint8_t ch = 0; ch < MaxChNum; ch++)
-            iot_servo_write_angle(LEDC_LOW_SPEED_MODE, ch, angle);
-    }
-    else
-        iot_servo_write_angle(LEDC_LOW_SPEED_MODE, Servo, angle);
+    SetAngle(ALL, 30);
     return ESP_OK;
-}
-
-esp_err_t Servo::ReadAngle(ServoCH_e Servo, float &angle)
-{
-    if (Servo >= MaxChNum || Servo >= ALL)
-        return ESP_ERR_INVALID_ARG;
-    return iot_servo_read_angle(LEDC_LOW_SPEED_MODE, Servo, &angle);
 }
