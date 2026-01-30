@@ -7,11 +7,10 @@
 
 Beeper::Beeper(gpio_num_t pin)
 {
-    // 1️⃣ 创建 TX channel
     rmt_tx_channel_config_t tx_cfg = {
         .gpio_num = pin,
         .clk_src = RMT_CLK_SRC_DEFAULT,
-        .resolution_hz = 1'000'000, // 1 MHz → 1 tick = 1 us
+        .resolution_hz = 1000000, // 1 MHz → 1 tick = 1 us
         .mem_block_symbols = 64,
         .trans_queue_depth = 4,
         .intr_priority = 0,
@@ -24,7 +23,6 @@ Beeper::Beeper(gpio_num_t pin)
 
     ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_cfg, &tx_channel));
 
-    // 2️⃣ 使用最简单的 copy encoder（把 symbol 原样发出去）
     rmt_copy_encoder_config_t encoder_cfg = {};
     ESP_ERROR_CHECK(rmt_new_copy_encoder(&encoder_cfg, &encoder));
 
@@ -78,5 +76,5 @@ void Beeper::play_boot_music()
 {
     play(523.25f, 320); // C5
     play(659.25f, 220); // E5
-    play(783.99f, 480); // G5
+    play(783.99f, 450); // G5
 }

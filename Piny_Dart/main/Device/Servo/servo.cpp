@@ -17,7 +17,7 @@ Servo::Servo()
     };
     ESP_ERROR_CHECK(ledc_timer_config(&timer));
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 8; i++) {
         ledc_channel_config_t ch = {
             .gpio_num = PINS[i],
             .speed_mode = MODE,
@@ -50,7 +50,7 @@ esp_err_t Servo::SetAngle(ServoCH_e ch, int angle)
     uint32_t duty = us_to_duty(pulse);
 
     if (ch == ALL) {
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 8; i++) {
             ledc_set_duty(MODE, (ledc_channel_t)i, duty);
             ledc_update_duty(MODE, (ledc_channel_t)i);
         }

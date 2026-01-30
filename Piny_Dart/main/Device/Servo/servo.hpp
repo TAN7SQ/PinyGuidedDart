@@ -43,6 +43,11 @@ public:
         LF1,
         RF0,
         RF1,
+
+        LB0,
+        LB1,
+        RB0,
+        RB1,
         ALL
     };
 
