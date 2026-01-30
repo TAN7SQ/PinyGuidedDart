@@ -150,10 +150,18 @@ void SensorSpiTask(void *pvParameters)
 }
 
 // send sensor and log data to host pc
+#include "uart.hpp"
 void HostPCTask(void *pvParameters)
 {
+    uart muart1(GPIO_NUM_46, GPIO_NUM_45, 115200, UART_NUM_1);
+    uart muart2(GPIO_NUM_12, GPIO_NUM_7, 115200, UART_NUM_2);
+    muart1.initialize();
+    muart2.initialize();
     while (1) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        muart1.write((const uint8_t *)"hello world1\n", strlen("hello world1\n"));
+        vTaskDelay(pdMS_TO_TICKS(100));
+        muart2.write((const uint8_t *)"hello world2\n", strlen("hello world2\n"));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
@@ -195,7 +203,6 @@ void ControlTask(void *pvParameters)
 void LogTask(void *pvParameters)
 {
     TF_Card *tfCard = (TF_Card *)pvParameters;
-    tfCard->Initialize();
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(10));
         // TODO: 设置队列，并异步地写入TF卡，句柄应该通过参数来传递
@@ -222,14 +229,13 @@ void Application::Initialize()
         ESP_LOGE(Application::TAG, "Failed to create sensor queue");
         return;
     }
-    //************************************************************ */
     this->xTFCardMutex = xSemaphoreCreateMutex();
     if (this->xTFCardMutex == NULL) {
         ESP_LOGE(Application::TAG, "Failed to create TF card mutex");
         return;
     }
 
-    /************************  ************************/
+    /************************ LOG SYSTEM INITIALIZE ************************/
     esp_err_t tf_ret = this->tfCard.Initialize();
     if (tf_ret != ESP_OK) {
         ESP_LOGE(Application::TAG, "TF card initialization failed: %s", esp_err_to_name(tf_ret));
@@ -237,7 +243,6 @@ void Application::Initialize()
     }
     ESP_LOGI(Application::TAG, "TF card initialized successfully");
 
-    /************************  ************************/
     LogTaskParams_t log_task_params = {
         .tf_card_ptr = &this->tfCard, //
         .log_queue = this->xLogQueue  //

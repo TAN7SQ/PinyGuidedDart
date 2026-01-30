@@ -16,7 +16,7 @@ set(SENSOR_SOURCES
     "Sensors/device_cpp/bmi088.cpp"
     "Sensors/device_cpp/ms5611.cpp"
     "Sensors/drivers/i2c_bus.cpp"
-    "Sensors/drivers/uart_.cpp"
+    "Sensors/drivers/uart.cpp"
 )
 
 # Device模块源文件
