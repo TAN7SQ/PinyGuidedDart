@@ -221,6 +221,8 @@ Application::~Application()
 void Application::Initialize()
 {
     ESP_LOGI(Application::TAG, "Application");
+    Beeper beeper(GPIO_NUM_21);
+    
 
     /************************  ************************/
     this->xLogQueue = xQueueCreate(LOG_QUEUE_LEN, LOG_DATA_MAX_LEN);
@@ -270,6 +272,7 @@ void Application::Initialize()
     xTaskCreatePinnedToCore(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
 
     ESP_LOGI(Application::TAG, "All tasks created successfully, Application initialized");
+
 }
 
 void Application::Run()

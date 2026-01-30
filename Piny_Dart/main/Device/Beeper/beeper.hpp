@@ -9,6 +9,7 @@ public:
         buzzer_init(pin);
         playmusic();
         ESP_LOGI("Beeper", "Beeper initialized");
+        ledc_timer_resume(BUZZER_TIMER_SPEED_MODE, BUZZER_TIMER_SOURCE);
     }
     void play(piano_note_t note, uint32_t duration)
     {
@@ -22,11 +23,7 @@ public:
             NOTE_G5  //
         };
 
-        float note_loud_time[] = {
-            0.35, 
-            0.22, 
-            0.45  
-        };
+        float note_loud_time[] = {0.35, 0.22, 0.45};
 
         uint8_t melody_len = sizeof(dji_boot_notes) / sizeof(dji_boot_notes[0]);
 
