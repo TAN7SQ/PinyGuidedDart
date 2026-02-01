@@ -31,7 +31,7 @@
 #define SENSOR_DATA_MAX_LEN 256
 #define SENSOR_QUEUE_LEN 10
 
-Beeper* Application::sBeeper = nullptr;
+Beeper *Application::sBeeper = nullptr;
 //************************************************************ */
 
 void LedTask(void *pvParameters)
@@ -299,7 +299,7 @@ void Application::Initialize()
 
 void Application::Run()
 {
-    this->beeper.play_run_music();
+    // this->beeper.play_run_music();
 
     ESP_LOGI(Application::TAG, "App run");
     while (1) {
