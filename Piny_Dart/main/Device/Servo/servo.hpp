@@ -55,6 +55,7 @@ public:
         LB1,
         RB0,
         RB1,
+
         ALL
     };
 

@@ -41,7 +41,7 @@ void changeLog(const int TARGET_BAUDRATE = 576000)
 
     uart_vfs_dev_use_driver(UART_NUM_0);
 
-    esp_rom_uart_set_as_console(UART_NUM_0);
+    esp_rom_output_set_as_console(UART_NUM_0);
     uart_vfs_dev_port_set_rx_line_endings(UART_NUM_0, ESP_LINE_ENDINGS_LF);
     uart_vfs_dev_port_set_tx_line_endings(UART_NUM_0, ESP_LINE_ENDINGS_LF);
 

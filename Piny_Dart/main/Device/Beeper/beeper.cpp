@@ -44,7 +44,7 @@ Beeper::Beeper(gpio_num_t pin)
     ESP_ERROR_CHECK(rmt_enable(tx_channel));
 
     beep_queue = xQueueCreate(8, sizeof(BeepCmd));
-    xTaskCreatePinnedToCore(beeper_task, "beeper_task", 2048, this, 5, &task_handle, 0);
+    xTaskCreatePinnedToCore(beeper_task, "beeper_task", 2048, this, 5, &task_handle, 1);
 
     ESP_LOGI(TAG, "Non-blocking RMT beeper initialized");
 }

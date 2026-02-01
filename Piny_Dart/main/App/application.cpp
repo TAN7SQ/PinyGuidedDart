@@ -157,10 +157,9 @@ void HostPCTask(void *pvParameters)
     uart muart2(GPIO_NUM_12, GPIO_NUM_7, 115200, UART_NUM_2);
     muart1.initialize();
     muart2.initialize();
+    muart1.write((const uint8_t *)"hello world1\n", strlen("hello world1\n"));
+    muart2.write((const uint8_t *)"hello world2\n", strlen("hello world2\n"));
     while (1) {
-        muart1.write((const uint8_t *)"hello world1\n", strlen("hello world1\n"));
-        vTaskDelay(pdMS_TO_TICKS(100));
-        muart2.write((const uint8_t *)"hello world2\n", strlen("hello world2\n"));
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }

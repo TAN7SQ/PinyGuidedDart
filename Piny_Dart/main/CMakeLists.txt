@@ -1,12 +1,20 @@
+
 # 组件依赖要求
 set(REQUIRES 
     console
     driver
     vfs
+    
     sdmmc
     fatfs
     nvs_flash
+
     esp_driver_ledc
+
+    esp_event
+    esp_wifi
+    lwip
+    esp_netif
 )
 
 # ========== 按模块分类 ==========
@@ -27,6 +35,11 @@ set(DEVICE_SOURCES
     "Device/Servo/servo.cpp"
 )
 
+# Protocol模块源文件
+set(PROTOCOL_SOURCES
+    "Protocol/udp.cpp"
+)
+
 # App模块源文件
 set(APP_SOURCES
     "App/application.cpp"
@@ -41,6 +54,7 @@ set(SOURCES
     ${SENSOR_SOURCES}
     ${DEVICE_SOURCES}
     ${APP_SOURCES}
+    ${PROTOCOL_SOURCES}
 )
 
 # ========== 按模块分类 ==========
