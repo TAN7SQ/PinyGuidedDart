@@ -285,7 +285,7 @@ void Application::Initialize()
     xTaskCreatePinnedToCore(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
 
     /************************  ************************/
-    static auto beeper_cb = []() {
+    auto beeper_cb = []() {
         Application::sBeeper->play_run_music();
     };
     esp_err_t ret = this->client.init(client_config, beeper_cb);

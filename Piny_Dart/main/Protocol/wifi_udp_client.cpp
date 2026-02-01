@@ -15,13 +15,87 @@
 const int WifiUdpClient::WIFI_CONNECTED_BIT = BIT0;
 const int WifiUdpClient::WIFI_FAIL_BIT = BIT1;
 
+static void (*s_user_init_cb)(void) = nullptr;
+
+void WifiUdpClient::initTask(void *arg)
+{
+    WifiUdpClient *instance = (WifiUdpClient *)arg;
+    if (instance == nullptr) {
+        ESP_LOGE(TAG, "Init task: invalid instance");
+        vTaskDelete(NULL);
+        return;
+    }
+
+    ESP_LOGI(TAG, "wifi_udp_client init task start");
+    esp_err_t ret = ESP_OK;
+    do {
+        ret = nvs_flash_init();
+        if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+            ESP_ERROR_CHECK(nvs_flash_erase());
+            ret = nvs_flash_init();
+        }
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "NVS init fail: %s", esp_err_to_name(ret));
+            break;
+        }
+
+        ret = instance->initWifiSta();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "WiFi init fail: %s", esp_err_to_name(ret));
+            break;
+        }
+
+        ret = instance->initUdp();
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "UDP init fail: %s", esp_err_to_name(ret));
+            break;
+        }
+
+        BaseType_t taskRet = xTaskCreatePinnedToCore(udpSendTask,
+                                                     "udp_send",
+                                                     UDP_SEND_TASK_STACK,
+                                                     instance,
+                                                     UDP_SEND_TASK_PRIO,
+                                                     &instance->m_udpSendTaskHandle,
+                                                     1);
+
+        if (taskRet != pdPASS) {
+            ESP_LOGE(TAG, "Create UDP send task fail");
+            close(instance->m_udpSock);
+            ret = ESP_FAIL;
+            break;
+        }
+
+        instance->m_isInited = true;
+        ESP_LOGI(TAG,
+                 "WifiUdpClient Create Success,UDP server: %s:%d",
+                 instance->m_config.udp_server_ip,
+                 instance->m_config.udp_server_port);
+
+        if (s_user_init_cb != nullptr) {
+            s_user_init_cb();
+            s_user_init_cb = nullptr;
+        }
+
+    } while (0);
+
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "WifiUdpClient Create Failed!");
+        if (instance->m_wifiEventGroup != nullptr) {
+            xEventGroupSetBits(instance->m_wifiEventGroup, WIFI_FAIL_BIT);
+        }
+    }
+
+    vTaskDelete(NULL);
+}
+
 WifiUdpClient &WifiUdpClient::getInstance()
 {
     static WifiUdpClient instance;
     return instance;
 }
 
-WifiUdpClient::WifiUdpClient() : m_destAddrLen(sizeof(m_destAddr))
+WifiUdpClient::WifiUdpClient() : m_wifiRetryNum(0), m_udpSock(-1), m_destAddrLen(sizeof(m_destAddr))
 {
     m_udpSendQueue = xQueueCreate(UDP_SEND_QUEUE_LEN, UDP_SEND_DATA_MAX_LEN);
     if (m_udpSendQueue == nullptr) {
@@ -39,27 +113,16 @@ WifiUdpClient::~WifiUdpClient()
 
 esp_err_t WifiUdpClient::init(const WifiUdpConfig &config, void (*cb)(void))
 {
-    // TODO:非阻塞式初始化
-    WifiUdpClient::init(config);
-    cb();
-    return ESP_OK;
-}
-
-esp_err_t WifiUdpClient::init(const WifiUdpConfig &config)
-{
     if (m_isInited) {
         ESP_LOGW(TAG, "Already inited, skip");
         return ESP_OK;
     }
 
-    // 核心必填项校验（WiFi+UDP）
     if (config.wifi_ssid == nullptr || config.wifi_pass == nullptr || config.udp_server_ip == nullptr ||
         config.udp_server_port == 0) {
         ESP_LOGE(TAG, "Invalid init params: WiFi/UDP config is required");
         return ESP_ERR_INVALID_ARG;
     }
-
-    // 静态IP可选校验：要么全配，要么全留空
     bool has_static_ip =
         (config.static_ip != nullptr) && (config.static_gw != nullptr) && (config.static_netmask != nullptr);
     bool has_part_static =
@@ -70,44 +133,20 @@ esp_err_t WifiUdpClient::init(const WifiUdpConfig &config)
     }
 
     m_config = config;
+    s_user_init_cb = cb;
 
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
-    }
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "NVS init fail: %s", esp_err_to_name(ret));
-        return ret;
-    }
-
-    ret = initWifiSta();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "WiFi init fail: %s", esp_err_to_name(ret));
-        return ret;
-    }
-
-    ret = initUdp();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "UDP init fail: %s", esp_err_to_name(ret));
-        return ret;
-    }
-
-    BaseType_t taskRet =
-        xTaskCreate(udpSendTask, "udp_send", UDP_SEND_TASK_STACK, this, UDP_SEND_TASK_PRIO, &m_udpSendTaskHandle);
-    if (taskRet != pdPASS) {
-        ESP_LOGE(TAG, "Create UDP send task fail");
-        close(m_udpSock);
+    BaseType_t ret = xTaskCreatePinnedToCore(initTask, "wifi_udp_init", 4096, this, 5, nullptr, 1);
+    if (ret != pdPASS) {
+        ESP_LOGE(TAG, "Create wifi udp init task fail");
+        s_user_init_cb = nullptr;
         return ESP_FAIL;
     }
-
-    m_isInited = true;
-    ESP_LOGI(TAG,
-             "WifiUdpClient init success, UDP server: %s:%d, %s",
-             config.udp_server_ip,
-             config.udp_server_port,
-             has_static_ip ? "static IP mode" : "DHCP mode");
     return ESP_OK;
+}
+
+esp_err_t WifiUdpClient::init(const WifiUdpConfig &config)
+{
+    return init(config, nullptr);
 }
 
 esp_err_t WifiUdpClient::ipStrToIp4(const char *ip_str, esp_ip4_addr_t &ip)
@@ -140,7 +179,6 @@ esp_err_t WifiUdpClient::ipStrToIp4(const char *ip_str, esp_ip4_addr_t &ip)
         p = strtok(nullptr, ".");
     }
 
-    // 校验是否刚好4段
     if (seg_cnt != 4) {
         ESP_LOGE(TAG, "IP format error: %s (must be x.x.x.x)", ip_str);
         return ESP_FAIL;
@@ -151,7 +189,6 @@ esp_err_t WifiUdpClient::ipStrToIp4(const char *ip_str, esp_ip4_addr_t &ip)
     return ESP_OK;
 }
 
-// 非阻塞发送：字节数组版
 esp_err_t WifiUdpClient::sendData(const uint8_t *data, uint16_t len)
 {
     if (!m_isInited || data == nullptr || len == 0 || len > UDP_SEND_DATA_MAX_LEN) {
@@ -159,7 +196,6 @@ esp_err_t WifiUdpClient::sendData(const uint8_t *data, uint16_t len)
         return ESP_FAIL;
     }
 
-    // 非阻塞入队，超时0
     BaseType_t queueRet = xQueueSend(m_udpSendQueue, data, pdMS_TO_TICKS(0));
     if (queueRet != pdPASS) {
         ESP_LOGE(TAG, "UDP send queue full, drop data (len: %d)", len);
@@ -170,37 +206,31 @@ esp_err_t WifiUdpClient::sendData(const uint8_t *data, uint16_t len)
     return ESP_OK;
 }
 
-// 非阻塞发送：字符串版（重载）
 esp_err_t WifiUdpClient::sendData(const std::string &data)
 {
     return sendData((const uint8_t *)data.c_str(), data.length());
 }
 
-// 资源释放
 void WifiUdpClient::deinit()
 {
     if (!m_isInited)
         return;
 
-    // 删除UDP发送任务
     if (m_udpSendTaskHandle != nullptr) {
         vTaskDelete(m_udpSendTaskHandle);
         m_udpSendTaskHandle = nullptr;
     }
 
-    // 关闭UDP套接字
     if (m_udpSock >= 0) {
         close(m_udpSock);
         m_udpSock = -1;
     }
 
-    // 删除发送队列
     if (m_udpSendQueue != nullptr) {
         vQueueDelete(m_udpSendQueue);
         m_udpSendQueue = nullptr;
     }
 
-    // 停止并反初始化WiFi/网络
     esp_wifi_stop();
     esp_wifi_deinit();
     esp_netif_deinit();
@@ -210,7 +240,6 @@ void WifiUdpClient::deinit()
     ESP_LOGI(TAG, "WifiUdpClient deinit success");
 }
 
-// WiFi事件回调
 void WifiUdpClient::wifiEventHandler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
     WifiUdpClient *instance = (WifiUdpClient *)arg;
@@ -241,16 +270,13 @@ void WifiUdpClient::wifiEventHandler(void *arg, esp_event_base_t event_base, int
     }
 }
 
-// 初始化WiFi STA：适配ESP-IDF5.4，修复语法和类型问题
 esp_err_t WifiUdpClient::initWifiSta()
 {
-    // 创建WiFi事件组
     m_wifiEventGroup = xEventGroupCreate();
     if (m_wifiEventGroup == nullptr) {
         return ESP_FAIL;
     }
 
-    // 初始化网络接口和事件循环
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
@@ -259,11 +285,9 @@ esp_err_t WifiUdpClient::initWifiSta()
         return ESP_FAIL;
     }
 
-    // WiFi驱动初始化
     wifi_init_config_t wifiCfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&wifiCfg));
 
-    // 注册WiFi事件回调
     esp_event_handler_instance_t instanceAnyId = NULL;
     esp_event_handler_instance_t instanceGotIp = NULL;
     ESP_ERROR_CHECK(
@@ -271,7 +295,6 @@ esp_err_t WifiUdpClient::initWifiSta()
     ESP_ERROR_CHECK(
         esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifiEventHandler, this, &instanceGotIp));
 
-    // 【修复语法错误】C++规范的结构体指定初始化（全嵌套指定，无混合）
     wifi_config_t wifiStaCfg = {};
     strncpy((char *)wifiStaCfg.sta.ssid, m_config.wifi_ssid, sizeof(wifiStaCfg.sta.ssid) - 1);
     strncpy((char *)wifiStaCfg.sta.password, m_config.wifi_pass, sizeof(wifiStaCfg.sta.password) - 1);
@@ -279,16 +302,13 @@ esp_err_t WifiUdpClient::initWifiSta()
     wifiStaCfg.sta.pmf_cfg.capable = true;
     wifiStaCfg.sta.pmf_cfg.required = false;
 
-    // 设置WiFi模式并启动
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifiStaCfg));
     esp_wifi_set_ps(WIFI_PS_NONE); // 关闭低功耗
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    // 静态IP配置：适配esp_ip4_addr_t类型
     if (m_config.static_ip != nullptr) {
         esp_netif_ip_info_t ip_info = {};
-        // 解析字符串IP到esp_ip4_addr_t（核心类型修复）
         if (ipStrToIp4(m_config.static_ip, ip_info.ip) != ESP_OK ||
             ipStrToIp4(m_config.static_gw, ip_info.gw) != ESP_OK ||
             ipStrToIp4(m_config.static_netmask, ip_info.netmask) != ESP_OK) {
@@ -309,7 +329,6 @@ esp_err_t WifiUdpClient::initWifiSta()
         ESP_LOGI(TAG, "WiFi use DHCP mode, auto get IP");
     }
 
-    // 等待WiFi连接结果
     EventBits_t bits =
         xEventGroupWaitBits(m_wifiEventGroup, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     if (bits & WIFI_CONNECTED_BIT) {
@@ -326,17 +345,14 @@ esp_err_t WifiUdpClient::initWifiSta()
     }
 }
 
-// 初始化UDP套接字
 esp_err_t WifiUdpClient::initUdp()
 {
-    // 创建UDP套接字
     m_udpSock = socket(AF_INET, SOCK_DGRAM, 0);
     if (m_udpSock < 0) {
         ESP_LOGE(TAG, "UDP create socket fail, errno: %d", errno);
         return ESP_FAIL;
     }
 
-    // 初始化服务端地址
     memset(&m_destAddr, 0, m_destAddrLen);
     m_destAddr.sin_family = AF_INET;
     m_destAddr.sin_port = htons(m_config.udp_server_port);
@@ -352,7 +368,6 @@ esp_err_t WifiUdpClient::initUdp()
     return ESP_OK;
 }
 
-// UDP发送任务（静态入口）
 void WifiUdpClient::udpSendTask(void *arg)
 {
     WifiUdpClient *instance = (WifiUdpClient *)arg;
@@ -366,7 +381,6 @@ void WifiUdpClient::udpSendTask(void *arg)
     ESP_LOGI(TAG, "UDP send task start");
 
     while (1) {
-        // 阻塞等待队列数据
         BaseType_t queueRet = xQueueReceive(instance->m_udpSendQueue, sendBuf, portMAX_DELAY);
         if (queueRet == pdPASS) {
             uint16_t dataLen = strlen((const char *)sendBuf);
