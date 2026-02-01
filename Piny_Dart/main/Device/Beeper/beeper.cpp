@@ -121,7 +121,16 @@ void Beeper::play_blocking(float freq_hz, uint32_t duration_ms)
 
 void Beeper::play_boot_music()
 {
-    play(NOTE_C5, 350);
     play(NOTE_E5, 250);
-    play(NOTE_G5, 500);
+    play(NOTE_C5, 150);
+    play(NOTE_G5, 350);
 }
+
+void Beeper::play_run_music()
+{
+    play(NOTE_C5, 250);
+    play(NOTE_E5, 150);
+    play(NOTE_G5, 150);
+    play(NOTE_B5, 400);
+}
+

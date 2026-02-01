@@ -37,7 +37,7 @@ set(DEVICE_SOURCES
 
 # Protocol模块源文件
 set(PROTOCOL_SOURCES
-    "Protocol/udp.cpp"
+    "Protocol/wifi_udp_client.cpp"
 )
 
 # App模块源文件
@@ -76,6 +76,7 @@ set(DEVICE_INCLUDE_DIRS
 set(APP_INCLUDE_DIRS
     "App/include"
     "mLog"  # mLog归类到App模块，若需独立可单独定义
+    "Protocol"
 )
 
 # 合并所有包含目录

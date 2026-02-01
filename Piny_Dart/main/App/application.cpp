@@ -30,8 +30,8 @@
 
 #define SENSOR_DATA_MAX_LEN 256
 #define SENSOR_QUEUE_LEN 10
-// QueueHandle_t xSensorQueue = NULL;
-// SemaphoreHandle_t xTFCardMutex = NULL;
+
+Beeper* Application::sBeeper = nullptr;
 //************************************************************ */
 
 void LedTask(void *pvParameters)
@@ -209,7 +209,22 @@ void LogTask(void *pvParameters)
 }
 
 Application::Application()
+    : beeper(GPIO_NUM_21), //
+      client(WifiUdpClient::getInstance())
 {
+    Application::sBeeper = &this->beeper;
+    this->beeper.play_boot_music();
+
+    client_config = {
+        .wifi_ssid = "TAN",
+        .wifi_pass = "11111111",
+        .udp_server_ip = "192.168.137.99",
+        .udp_server_port = 8080,
+        .static_ip = "192.168.137.99", // 除了最后一位，其他必须和服务器网关相同
+        .static_gw = "192.168.137.1",
+        .static_netmask = "255.255.255.0",
+    };
+
     ESP_LOGI(Application::TAG, "App start");
 }
 
@@ -235,6 +250,7 @@ void Application::Initialize()
     }
 
     /************************ LOG SYSTEM INITIALIZE ************************/
+
     esp_err_t tf_ret = this->tfCard.Initialize();
     if (tf_ret != ESP_OK) {
         ESP_LOGE(Application::TAG, "TF card initialization failed: %s", esp_err_to_name(tf_ret));
@@ -268,13 +284,23 @@ void Application::Initialize()
     xTaskCreatePinnedToCore(HostPCTask, "HostPCTask", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
     xTaskCreatePinnedToCore(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
 
+    /************************  ************************/
+    static auto beeper_cb = []() {
+        Application::sBeeper->play_run_music();
+    };
+    esp_err_t ret = this->client.init(client_config, beeper_cb);
+    if (ret != ESP_OK) {
+        ESP_LOGE(Application::TAG, "WifiUdpClient init failed: %s", esp_err_to_name(ret));
+        return;
+    }
+
     ESP_LOGI(Application::TAG, "All tasks created successfully, Application initialized");
 }
 
 void Application::Run()
 {
-    Beeper beeper(GPIO_NUM_21);
-    beeper.play_boot_music();
+    this->beeper.play_run_music();
+
     ESP_LOGI(Application::TAG, "App run");
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));

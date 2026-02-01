@@ -44,6 +44,8 @@ public:
     void play(BeepNote note, uint32_t duration_ms);
     void play(float freq_hz, uint32_t duration_ms);
     void play_boot_music();
+    void play_run_music();
+    void play_wifi_music();
 
 private:
     static constexpr const char *TAG = "BEEPER";

@@ -12,18 +12,19 @@
 #include "i2c_bus.hpp"
 #include "spi_bus.hpp"
 
+#include "beeper.hpp"
 #include "tfcard.hpp"
+#include "wifi_udp_client.hpp"
 
 #include <iostream>
 
 extern QueueHandle_t xLogQueue;
 extern SemaphoreHandle_t xTFCardMutex;
 
-// 日志任务的参数结构体：封装TF卡对象指针 + 日志队列句柄
 typedef struct
 {
-    TF_Card *tf_card_ptr;    // TF卡对象指针
-    QueueHandle_t log_queue; // 日志队列句柄
+    TF_Card *tf_card_ptr;
+    QueueHandle_t log_queue;
 } LogTaskParams_t;
 
 void LogTask(void *pvParameters);
@@ -40,13 +41,17 @@ public:
         static Application instance;
         return instance;
     }
-    // Delete copy constructor and assignment operator
     Application(const Application &) = delete;
     Application &operator=(const Application &) = delete;
     void Initialize();
     void Run();
 
+    Beeper beeper;
+    static Beeper *sBeeper;
+
     TF_Card tfCard;
+    WifiUdpClient &client; // 引用成员只能在初始化列表中初始化, 不能在构造函数中初始化
+    WifiUdpClient::WifiUdpConfig client_config;
 
 private:
     QueueHandle_t xSpiSensorQueue = NULL;

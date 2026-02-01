@@ -48,8 +48,8 @@ public:
 
     // 禁用拷贝/移动
     SPIBus(const SPIBus &) = delete;
-    SPIBus &operator=(const SPIBus &) = delete;
     SPIBus(SPIBus &&) = delete;
+    SPIBus &operator=(const SPIBus &) = delete;
     SPIBus &operator=(SPIBus &&) = delete;
 
     esp_err_t add_device(const spi::DeviceConfig &dev_cfg, spi_device_handle_t &dev_handle);
