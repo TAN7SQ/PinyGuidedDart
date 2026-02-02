@@ -48,12 +48,20 @@ set(APP_SOURCES
 
 )
 
+# Algorithm模块源文件
+set(ALGORITHM_SOURCES
+    "Algorithm/kalman.cpp"
+)
+
+
+
 # 合并所有源文件
 set(SOURCES
     "main.cpp"
     ${SENSOR_SOURCES}
     ${DEVICE_SOURCES}
     ${APP_SOURCES}
+    ${ALGORITHM_SOURCES}
     ${PROTOCOL_SOURCES}
 )
 
@@ -77,6 +85,7 @@ set(APP_INCLUDE_DIRS
     "App/include"
     "mLog"  # mLog归类到App模块，若需独立可单独定义
     "Protocol"
+    "Algorithm"
 )
 
 # 合并所有包含目录

@@ -166,7 +166,7 @@ esp_err_t uart::initialize()
 
     ESP_LOGI(TAG, "uart[%d] initialize success, baud: %d", port, baud_rate);
     return ESP_OK;
-}
+} 
 
 int uart::write(const uint8_t *data, size_t size)
 {

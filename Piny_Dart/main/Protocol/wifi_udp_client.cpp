@@ -149,6 +149,13 @@ esp_err_t WifiUdpClient::init(const WifiUdpConfig &config)
     return init(config, nullptr);
 }
 
+/**
+ * @brief Convert IP string to esp_ip4_addr_t
+ *
+ * @param ip_str IP string in format "x.x.x.x"
+ * @param ip Output esp_ip4_addr_t struct
+ * @return esp_err_t ESP_OK on success, ESP_FAIL on error
+ */
 esp_err_t WifiUdpClient::ipStrToIp4(const char *ip_str, esp_ip4_addr_t &ip)
 {
     if (ip_str == nullptr || strlen(ip_str) == 0) {
@@ -304,7 +311,7 @@ esp_err_t WifiUdpClient::initWifiSta()
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifiStaCfg));
-    esp_wifi_set_ps(WIFI_PS_NONE); // 关闭低功耗
+    esp_wifi_set_ps(WIFI_PS_MAX_MODEM); // 低功耗开关，实测对功耗影响巨大
     ESP_ERROR_CHECK(esp_wifi_start());
 
     if (m_config.static_ip != nullptr) {

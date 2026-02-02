@@ -50,7 +50,6 @@ public:
 
     void deinit();
 
-    // 禁止拷贝和赋值（单例模式）
     WifiUdpClient(const WifiUdpClient &) = delete;
     WifiUdpClient &operator=(const WifiUdpClient &) = delete;
 
@@ -58,25 +57,24 @@ private:
     WifiUdpClient();
     ~WifiUdpClient();
 
-    WifiUdpConfig m_config;              // 全局统一配置
-    EventGroupHandle_t m_wifiEventGroup; // WiFi事件组
-    static const int WIFI_CONNECTED_BIT; // WiFi连接成功标志
-    static const int WIFI_FAIL_BIT;      // WiFi连接失败标志
-    int m_wifiRetryNum = 0;              // WiFi重连次数
+    WifiUdpConfig m_config;              
+    EventGroupHandle_t m_wifiEventGroup; 
+    static const int WIFI_CONNECTED_BIT; 
+    static const int WIFI_FAIL_BIT;      
+    int m_wifiRetryNum = 0;              
 
-    int m_udpSock = -1;            // UDP套接字句柄
-    struct sockaddr_in m_destAddr; // 服务端地址结构体
-    socklen_t m_destAddrLen;       // 地址结构体长度
+    int m_udpSock = -1;            
+    struct sockaddr_in m_destAddr; 
+    socklen_t m_destAddrLen;       
 
-    QueueHandle_t m_udpSendQueue;     // UDP发送队列（存储待发送数据）
-    TaskHandle_t m_udpSendTaskHandle; // UDP发送任务句柄
-    bool m_isInited = false;          // 初始化完成标志
+    QueueHandle_t m_udpSendQueue;     
+    TaskHandle_t m_udpSendTaskHandle; 
+    bool m_isInited = false;          
 
     esp_err_t ipStrToIp4(const char *ip_str, esp_ip4_addr_t &ip);
 
     static void wifiEventHandler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
     esp_err_t initWifiSta();
-    // 初始化UDP套接字
     esp_err_t initUdp();
 
     static void udpSendTask(void *arg);
