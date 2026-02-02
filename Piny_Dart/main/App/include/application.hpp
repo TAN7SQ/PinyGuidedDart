@@ -34,8 +34,6 @@ class Application
 public:
     static constexpr const char *TAG = "Application";
 
-    SemaphoreHandle_t xTFCardMutex = NULL;
-
     static Application &GetInstance()
     {
         static Application instance;
@@ -46,6 +44,7 @@ public:
     void Initialize();
     void Run();
 
+    //============================================
     Beeper beeper;
     static Beeper *sBeeper;
 
@@ -54,6 +53,7 @@ public:
     WifiUdpClient::WifiUdpConfig client_config;
 
 private:
+    SemaphoreHandle_t xTFCardMutex = NULL;
     QueueHandle_t xSpiSensorQueue = NULL;
     QueueHandle_t xI2cSensorQueue = NULL;
     QueueHandle_t xLogQueue = NULL;

@@ -234,7 +234,6 @@ Application::~Application()
 
 void Application::Initialize()
 {
-    ESP_LOGI(Application::TAG, "Application");
 
     /************************  ************************/
     this->xLogQueue = xQueueCreate(LOG_QUEUE_LEN, LOG_DATA_MAX_LEN);
