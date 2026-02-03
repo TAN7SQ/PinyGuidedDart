@@ -192,7 +192,6 @@ void AttitudeEKF::Predict(const Vec3 &gyro_meas, float dt)
         }
     }
 
-    // 强制Z轴偏置为0
     x.bias.z = 0.0f;
 }
 
@@ -208,15 +207,12 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
     const float qy = x.quat.y;
     const float qz = x.quat.z;
 
-    // 自适应观测噪声R调整
-    // 1. 机体系加速度转到导航系，计算水平加速度
+    // 根据静止状态和水平加速度自适应观测噪声R调整
     const float acc_nav_x =
         (1 - 2 * (qy * qy + qz * qz)) * z.x + 2 * (qx * qy - qw * qz) * z.y + 2 * (qx * qz + qw * qy) * z.z;
     const float acc_nav_y =
         2 * (qx * qy + qw * qz) * z.x + (1 - 2 * (qx * qx + qz * qz)) * z.y + 2 * (qy * qz - qw * qx) * z.z;
     acc_horizontal = std::sqrtf(acc_nav_x * acc_nav_x + acc_nav_y * acc_nav_y);
-
-    // 2. 根据静止状态和水平加速度调整R
     if (is_static) {
         r_scale = 1.0f;
         R = R_base;
@@ -240,7 +236,7 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
     z_pred[1] = 2.0f * (qy * qz + qw * qx);
     z_pred[2] = qw * qw - qx * qx - qy * qy + qz * qz;
 
-    // 构建观测雅可比矩阵H（3x7）
+    // 观测雅可比矩阵H
     float H_q[3][4] = {{-2.0f * qy, 2.0f * qz, -2.0f * qw, 2.0f * qx},
                        {2.0f * qx, 2.0f * qw, 2.0f * qz, 2.0f * qy},
                        {2.0f * qw, -2.0f * qx, -2.0f * qy, 2.0f * qz}};
@@ -252,7 +248,7 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
             H[i][j] = 0.0f;
     }
 
-    // 计算S = H*P*H^T + R（3x3）
+    // S = H*P*H^T + R（3x3）
     float HP[3][7] = {{0.0f}};
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 7; ++j) {
@@ -272,7 +268,6 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
         }
     }
 
-    // 3x3矩阵求逆（S_inv）
     float S_inv[3][3] = {{0.0f}};
     const float det = S[0][0] * (S[1][1] * S[2][2] - S[1][2] * S[2][1]) -
                       S[0][1] * (S[1][0] * S[2][2] - S[1][2] * S[2][0]) +
@@ -291,7 +286,7 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
     S_inv[2][1] = (S[0][1] * S[2][0] - S[0][0] * S[2][1]) * inv_det;
     S_inv[2][2] = (S[0][0] * S[1][1] - S[0][1] * S[1][0]) * inv_det;
 
-    // 卡尔曼增益K = P*H^T*S_inv（7x3）
+    // K = P*H^T*S_inv（7x3）
     float PHT[7][3] = {{0.0f}};
     for (int i = 0; i < 7; ++i) {
         for (int j = 0; j < 3; ++j) {
@@ -310,29 +305,28 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
     }
     std::memcpy(debug_K, K, sizeof(debug_K));
 
-    // 步骤7：计算新息y = z - z_pred
+    // 计算新息y = z - z_pred
     y[0] = z.x - z_pred[0];
     y[1] = z.y - z_pred[1];
     y[2] = z.z - z_pred[2];
 
-    // 状态更新 x = x + K*y
+    // x = x + K*y
     float Ky[7] = {0.0f};
     for (int i = 0; i < 7; ++i) {
         for (int j = 0; j < 3; ++j) {
             Ky[i] += K[i][j] * y[j];
         }
     }
-    // 修正四元数
+
+    // correction
     x.quat.w += Ky[0];
     x.quat.x += Ky[1];
     x.quat.y += Ky[2];
     x.quat.z += Ky[3];
-    // 修正陀螺偏置
     x.bias.x += Ky[4];
     x.bias.y += Ky[5];
     x.bias.z += Ky[6];
 
-    // 四元数归一化 + 偏置限幅
     QuatNormalize(x.quat);
     x.bias.x = std::fmaxf(-max_bias_, std::fminf(max_bias_, x.bias.x));
     x.bias.y = std::fmaxf(-max_bias_, std::fminf(max_bias_, x.bias.y));
@@ -348,6 +342,7 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
             }
         }
     }
+
     // P1 = (I-KH) * P
     float P1[7][7] = {{0.0f}};
     for (int i = 0; i < 7; ++i) {
@@ -357,6 +352,7 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
             }
         }
     }
+
     // P2 = P1 * (I-KH)^T
     float P2[7][7] = {{0.0f}};
     for (int i = 0; i < 7; ++i) {
@@ -366,6 +362,7 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
             }
         }
     }
+
     // KR = K * R
     float KR[7][3] = {{0.0f}};
     for (int i = 0; i < 7; ++i) {
@@ -375,6 +372,7 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
             }
         }
     }
+
     // KRKT = KR * K^T
     float KRKT[7][7] = {{0.0f}};
     for (int i = 0; i < 7; ++i) {
@@ -384,6 +382,7 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
             }
         }
     }
+
     // P = P2 + KRKT
     for (int i = 0; i < 7; ++i) {
         for (int j = 0; j < 7; ++j) {
@@ -396,12 +395,10 @@ void AttitudeEKF::QuatToEuler(const Quat &q, float &roll, float &pitch, float &y
 {
     const float qw = q.w, qx = q.x, qy = q.y, qz = q.z;
 
-    // 滚转（X轴）
     const float sinr_cosp = 2.0f * (qw * qx + qy * qz);
     const float cosr_cosp = 1.0f - 2.0f * (qx * qx + qy * qy);
     roll = std::atan2f(sinr_cosp, cosr_cosp);
 
-    // 俯仰（Y轴）：万向节死锁防护
     const float sinp = 2.0f * (qw * qy - qz * qx);
     if (std::fabsf(sinp) >= 1.0f) {
         pitch = std::copysignf(M_PI / 2.0f, sinp);
@@ -410,12 +407,10 @@ void AttitudeEKF::QuatToEuler(const Quat &q, float &roll, float &pitch, float &y
         pitch = std::asinf(sinp);
     }
 
-    // 偏航（Z轴）
     const float siny_cosp = 2.0f * (qw * qz + qx * qy);
     const float cosy_cosp = 1.0f - 2.0f * (qy * qy + qz * qz);
     yaw = std::atan2f(siny_cosp, cosy_cosp);
 
-    // 转换为角度制
     roll *= 180.0f / M_PI;
     pitch *= 180.0f / M_PI;
     yaw *= 180.0f / M_PI;
@@ -425,17 +420,15 @@ void AttitudeEKF::CalculateAccelOnlyEuler(const Vec3 &acc_meas)
 {
     Vec3 z = acc_meas;
     Vec3Normalize(z);
-    // 横滚、俯仰（度），偏航为0
     accel_only_euler[0] = std::atan2f(z.y, z.z) * 180.0f / M_PI;
     accel_only_euler[1] = std::atan2f(-z.x, std::sqrtf(z.y * z.y + z.z * z.z)) * 180.0f / M_PI;
     accel_only_euler[2] = 0.0f;
 }
 
+// still detect static
 void AttitudeEKF::StaticDetect(const Vec3 &gyro, const Vec3 &acc)
 {
-    // 计算陀螺/加速度计模值
     gyro_norm = std::sqrtf(gyro.x * gyro.x + gyro.y * gyro.y + gyro.z * gyro.z);
     accel_norm = std::sqrtf(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
-    // 静止判定：陀螺不动 + 加速度接近重力
     is_static = (gyro_norm < static_gyro_thresh_) && (std::fabsf(accel_norm - g_) < static_accel_dev_);
 }
