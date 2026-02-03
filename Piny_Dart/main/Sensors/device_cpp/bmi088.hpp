@@ -34,6 +34,18 @@
 #define GYRO_BANDWITH 0x10   // 带宽配置寄存器
 #define GYRO_RANGE 0x0F      // 量程配置寄存器
 
+// //-----------------------------------------------
+// #define BMI088_ACC_BWP_SHFITS 0x4
+// #define BMI088_ACC_NORMAL (0x2 << BMI088_ACC_BWP_SHFITS)
+
+// #define BMI088_ACC_ODR_SHFITS 0x0
+// #define BMI088_ACC_800_HZ (0xB << BMI088_ACC_ODR_SHFITS)
+// #define BMI088_ACC_1600_HZ (0xC << BMI088_ACC_ODR_SHFITS)
+// #define BMI088_ACC_CONF_MUST_Set 0x80
+
+#define BMI088_LONG_DELAY_TIME 80
+#define BMI088_COM_WAIT_SENSOR_TIME 150
+
 namespace sensor
 {
 
@@ -41,7 +53,6 @@ namespace sensor
 class BMI088
 {
 public:
-    // 传感器数据结构体
     struct Data
     {
         int16_t acc_x{0};
@@ -51,7 +62,6 @@ public:
         int16_t gyro_y{0};
         int16_t gyro_z{0};
 
-        // 转换为物理单位
         float acc_x_g() const
         {
             return acc_x * 0.000088f;
@@ -77,43 +87,32 @@ public:
             return gyro_z * 0.0152588f;
         }
 
-        // 格式化输出
         std::string to_string() const;
     };
 
-    // 构造函数（传入SPI设备配置）
     explicit BMI088(const spi::DeviceConfig &dev_cfg_acc, const spi::DeviceConfig &dev_cfg_gyro);
 
-    // 禁用拷贝/移动
     BMI088(const BMI088 &) = delete;
     BMI088 &operator=(const BMI088 &) = delete;
     BMI088(BMI088 &&) = delete;
     BMI088 &operator=(BMI088 &&) = delete;
 
-    // 初始化传感器
     esp_err_t init();
 
-    // 读取传感器数据
     esp_err_t read_data(Data &data);
 
-    // 析构释放设备
     ~BMI088();
 
 private:
-    // SPI总线实例（全局唯一）
     spi::SPIBus &spi_bus_;
-    // 加速度计/陀螺仪设备句柄
     spi_device_handle_t acc_handle_ = nullptr;
     spi_device_handle_t gyro_handle_ = nullptr;
 
-    // 加速度计上次有效数据
     Data last_acc_data_{};
 
-    // 内部初始化函数
     esp_err_t init_accelerometer();
     esp_err_t init_gyroscope();
 
-    // 内部数据读取函数
     esp_err_t read_accelerometer(Data &data);
     esp_err_t read_gyroscope(Data &data);
 };

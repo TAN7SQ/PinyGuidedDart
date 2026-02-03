@@ -23,6 +23,9 @@
 #include "tfcard.hpp"
 #include "ws2812.hpp"
 
+#include "AuxiliaryMath.hpp"
+#include "kalman.hpp"
+
 //************************************************************ */
 #define LOG_DATA_MAX_LEN 256
 #define LOG_QUEUE_LEN 10
@@ -104,19 +107,19 @@ void SensorSpiTask(void *pvParameters)
 
     spi::BusConfig spi_bus_config = {
         .host_num = SPI2_HOST,
-        .sclk_pin = GPIO_NUM_12, //
-        .mosi_pin = GPIO_NUM_13, //
-        .miso_pin = GPIO_NUM_14, //
+        .sclk_pin = GPIO_NUM_13, //
+        .mosi_pin = GPIO_NUM_12, //
+        .miso_pin = GPIO_NUM_11, //
     };
     spi::SPIBus &spiBus = spi::SPIBus::get_instance(spi_bus_config);
 
     spi::DeviceConfig bmi088_acc_cfg = {
         .clock_speed_hz = 1 * 1000 * 1000,
-        .cs_pin = GPIO_NUM_15,
+        .cs_pin = GPIO_NUM_9,
     };
     spi::DeviceConfig bmi088_gyro_cfg = {
         .clock_speed_hz = 1 * 1000 * 1000,
-        .cs_pin = GPIO_NUM_16,
+        .cs_pin = GPIO_NUM_10,
     };
 
     sensor::BMI088 bmi088(bmi088_acc_cfg, bmi088_gyro_cfg);
@@ -134,14 +137,14 @@ void SensorSpiTask(void *pvParameters)
             continue;
         }
         // 发送队列
-        // ESP_LOGI(Application::TAG,
-        //          "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f",
-        //          data.acc_x_g,
-        //          data.acc_y_g,
-        //          data.acc_z_g,
-        //          data.gyro_x_dps,
-        //          data.gyro_y_dps,
-        //          data.gyro_z_dps);
+        ESP_LOGI(Application::TAG,
+                 "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f",
+                 data.acc_x_g(),
+                 data.acc_y_g(),
+                 data.acc_z_g(),
+                 data.gyro_x_dps(),
+                 data.gyro_y_dps(),
+                 data.gyro_z_dps());
 
         // TODO:发送数据到主机
         xQueueSend(xSensorQueue, &data, portMAX_DELAY);
@@ -250,48 +253,48 @@ void Application::Initialize()
 
     /************************ LOG SYSTEM INITIALIZE ************************/
 
-    esp_err_t tf_ret = this->tfCard.Initialize();
-    if (tf_ret != ESP_OK) {
-        ESP_LOGE(Application::TAG, "TF card initialization failed: %s", esp_err_to_name(tf_ret));
-        return;
-    }
-    ESP_LOGI(Application::TAG, "TF card initialized successfully");
+    // esp_err_t tf_ret = this->tfCard.Initialize();
+    // if (tf_ret != ESP_OK) {
+    //     ESP_LOGE(Application::TAG, "TF card initialization failed: %s", esp_err_to_name(tf_ret));
+    //     return;
+    // }
+    // ESP_LOGI(Application::TAG, "TF card initialized successfully");
 
-    LogTaskParams_t log_task_params = {
-        .tf_card_ptr = &this->tfCard, //
-        .log_queue = this->xLogQueue  //
-    };
-    if (xTaskCreatePinnedToCore(LogTask,              //
-                                "log_task",           //
-                                4096,                 //
-                                &log_task_params,     //
-                                tskIDLE_PRIORITY + 1, //
-                                NULL,                 //
-                                1) != pdPASS) {       //
-        ESP_LOGE(Application::TAG, "Failed to create log task");
-        return;
-    }
+    // LogTaskParams_t log_task_params = {
+    //     .tf_card_ptr = &this->tfCard, //
+    //     .log_queue = this->xLogQueue  //
+    // };
+    // if (xTaskCreatePinnedToCore(LogTask,              //
+    //                             "log_task",           //
+    //                             4096,                 //
+    //                             &log_task_params,     //
+    //                             tskIDLE_PRIORITY + 1, //
+    //                             NULL,                 //
+    //                             1) != pdPASS) {       //
+    //     ESP_LOGE(Application::TAG, "Failed to create log task");
+    //     return;
+    // }
 
     /************************  ************************/
-    xTaskCreatePinnedToCore(LedTask, "led_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
-    xTaskCreatePinnedToCore(KeyTask, "key_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
+    // xTaskCreatePinnedToCore(LedTask, "led_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
+    // xTaskCreatePinnedToCore(KeyTask, "key_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
 
-    xTaskCreatePinnedToCore(SensorI2cTask, "SensorI2cTask", 4096, NULL, tskIDLE_PRIORITY + 2, NULL, 0);
+    // xTaskCreatePinnedToCore(SensorI2cTask, "SensorI2cTask", 4096, NULL, tskIDLE_PRIORITY + 2, NULL, 0);
     xTaskCreatePinnedToCore(
-        SensorSpiTask, "SensorSpiTask", 4096, &this->xSpiSensorQueue, tskIDLE_PRIORITY + 2, NULL, 0);
+        SensorSpiTask, "SensorSpiTask", 5096, &this->xSpiSensorQueue, tskIDLE_PRIORITY + 2, NULL, 0);
 
-    xTaskCreatePinnedToCore(HostPCTask, "HostPCTask", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
-    xTaskCreatePinnedToCore(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
+    // xTaskCreatePinnedToCore(HostPCTask, "HostPCTask", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
+    // xTaskCreatePinnedToCore(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
 
     /************************  ************************/
-    auto beeper_cb = []() {
-        Application::sBeeper->play_run_music();
-    };
-    esp_err_t ret = this->client.init(client_config, beeper_cb);
-    if (ret != ESP_OK) {
-        ESP_LOGE(Application::TAG, "WifiUdpClient init failed: %s", esp_err_to_name(ret));
-        return;
-    }
+    // auto beeper_cb = []() {
+    //     Application::sBeeper->play_run_music();
+    // };
+    // esp_err_t ret = this->client.init(client_config, beeper_cb);
+    // if (ret != ESP_OK) {
+    //     ESP_LOGE(Application::TAG, "WifiUdpClient init failed: %s", esp_err_to_name(ret));
+    //     return;
+    // }
 
     ESP_LOGI(Application::TAG, "All tasks created successfully, Application initialized");
 }
