@@ -50,7 +50,7 @@ set(APP_SOURCES
 
 # Algorithm模块源文件
 set(ALGORITHM_SOURCES
-    "Algorithm/kalman.cpp"
+    "Algorithm/kalman6asix.cpp"
 )
 
 

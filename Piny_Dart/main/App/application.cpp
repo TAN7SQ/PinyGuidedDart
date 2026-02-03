@@ -24,7 +24,7 @@
 #include "ws2812.hpp"
 
 #include "AuxiliaryMath.hpp"
-#include "kalman.hpp"
+#include "kalman6asix.hpp"
 
 //************************************************************ */
 #define LOG_DATA_MAX_LEN 256

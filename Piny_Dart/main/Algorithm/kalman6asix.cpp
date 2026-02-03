@@ -1,9 +1,7 @@
-#include "kalman.hpp"
+#include "kalman6asix.hpp"
 #include "AuxiliaryMath.hpp"
 
 // reference:https://github.com/ZCM1231/BMI088IMU_kalman/blob/main/App/kalman_filter.c
-
-#include "kalman.hpp"
 
 using namespace AuxMath;
 
@@ -36,7 +34,6 @@ void AttitudeEKF::Init(const Vec3 &initial_accel)
     else {
         const float pitch_check = -ax / acc_norm;
         if (std::fabsf(pitch_check) > 0.99f) {
-            // 接近万向节死锁，单位四元数
             x.quat = Quat(1.0f, 0.0f, 0.0f, 0.0f);
         }
         else {
@@ -330,7 +327,7 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
     QuatNormalize(x.quat);
     x.bias.x = std::fmaxf(-max_bias_, std::fminf(max_bias_, x.bias.x));
     x.bias.y = std::fmaxf(-max_bias_, std::fminf(max_bias_, x.bias.y));
-    x.bias.z = 0.0f; // 强制Z轴偏置为0
+    x.bias.z = 0.0f;
 
     // 协方差更新
     float I_KH[7][7] = {{0.0f}};
