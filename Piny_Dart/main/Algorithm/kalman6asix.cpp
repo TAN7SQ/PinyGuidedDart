@@ -131,7 +131,7 @@ void AttitudeEKF::Predict(const Vec3 &gyro_meas, float dt)
     F[5][5] = 1.0f;
     F[6][6] = 1.0f;
 
-    // 构建4x3过程噪声传播矩阵G
+    // 4x3过程噪声传播矩阵G
     float G[4][3] = {0.0f};
     G[0][0] = -0.5f * dt * q1;
     G[0][1] = -0.5f * dt * q2;
@@ -146,7 +146,7 @@ void AttitudeEKF::Predict(const Vec3 &gyro_meas, float dt)
     G[3][1] = 0.5f * dt * q1;
     G[3][2] = -0.5f * dt * q0;
 
-    // 计算Q_q = G * Q_gyro * G^T，更新Q的四元数部分
+    // Q_q = G * Q_gyro * G^T
     const float Q_gyro_scalar = process_noise_q_;
     float Q_q[4][4] = {{0.0f}};
     for (int i = 0; i < 4; ++i) {
@@ -162,7 +162,7 @@ void AttitudeEKF::Predict(const Vec3 &gyro_meas, float dt)
         }
     }
 
-    // 协方差预测：P = F*P*F^T + Q
+    // P = F*P*F^T + Q
     const Mat7x7 P_old = P;
     Mat7x7 FP;
     // FP = F * P_old
@@ -194,11 +194,9 @@ void AttitudeEKF::Predict(const Vec3 &gyro_meas, float dt)
 
 void AttitudeEKF::Update(const Vec3 &acc_meas)
 {
-    // 归一化加速度计测量值
     Vec3 z = acc_meas;
     Vec3Normalize(z);
 
-    // 提取当前四元数
     const float qw = x.quat.w;
     const float qx = x.quat.x;
     const float qy = x.quat.y;
@@ -270,7 +268,7 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
                       S[0][1] * (S[1][0] * S[2][2] - S[1][2] * S[2][0]) +
                       S[0][2] * (S[1][0] * S[2][1] - S[1][1] * S[2][0]);
     if (std::fabsf(det) < 1e-9f)
-        return; // 防止除零
+        return; 
     const float inv_det = 1.0f / det;
 
     S_inv[0][0] = (S[1][1] * S[2][2] - S[1][2] * S[2][1]) * inv_det;
@@ -302,7 +300,7 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
     }
     std::memcpy(debug_K, K, sizeof(debug_K));
 
-    // 计算新息y = z - z_pred
+    // 新息y = z - z_pred
     y[0] = z.x - z_pred[0];
     y[1] = z.y - z_pred[1];
     y[2] = z.z - z_pred[2];

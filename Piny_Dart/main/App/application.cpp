@@ -101,6 +101,7 @@ void SensorI2cTask(void *pvParameters)
     }
 }
 
+#include "kalman6asix.hpp"
 void SensorSpiTask(void *pvParameters)
 {
     QueueHandle_t xSensorQueue = (QueueHandle_t)pvParameters;
@@ -129,6 +130,9 @@ void SensorSpiTask(void *pvParameters)
         vTaskDelete(NULL);
         return;
     }
+
+    //========================================================
+AttitudeEKF ekf()
     while (1) {
         sensor::BMI088::Data data;
         ret = bmi088.read_data(data);

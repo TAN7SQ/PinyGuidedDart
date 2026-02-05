@@ -60,8 +60,9 @@ private:
     float adaptive_r_max_scale_ = 0.0f; // 自适应R最大缩放倍数
     float adaptive_r_exponent_ = 0.0f;  // 自适应R指数
     float dt_ = 0.0f;                   // 采样时间步长
-    float static_gyro_thresh_ = 0.0f;   // 静止检测陀螺阈值
-    float static_accel_dev_ = 0.0f;     // 静止检测加速度偏差
+
+    float static_gyro_thresh_ = 0.0f; // 静止检测陀螺阈值
+    float static_accel_dev_ = 0.0f;   // 静止检测加速度偏差
 };
 
 #endif // KALMAN_FILTER_H
