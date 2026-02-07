@@ -226,6 +226,7 @@ void SensorSpiTask(void *pvParameters)
                 data.gyro_x_dps(),
                 data.gyro_y_dps(),
                 data.gyro_z_dps());
+        // sprintf(imu_attitude_str, "%.2f,%.2f,%.2f\n", roll_def, pitch_def, yaw_def);
         Application::sClient->sendData((const uint8_t *)imu_attitude_str, strlen(imu_attitude_str));
         vTaskDelay(pdMS_TO_TICKS(IMU_UPDATE_DT * 1000));
     }
@@ -368,10 +369,12 @@ void Application::Initialize()
     xTaskCreatePinnedToCore(
         SensorSpiTask, "SensorSpiTask", 10096, &this->xSpiSensorQueue, tskIDLE_PRIORITY + 2, NULL, 0);
 
+    vTaskDelay(pdMS_TO_TICKS(100));
+
     xTaskCreatePinnedToCore(HostPCTask, "HostPCTask", 4096, &this->client, tskIDLE_PRIORITY + 3, NULL, 0);
     // xTaskCreatePinnedToCore(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
 
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(pdMS_TO_TICKS(100));
 
     /************************  ************************/
     auto beeper_cb = []() {

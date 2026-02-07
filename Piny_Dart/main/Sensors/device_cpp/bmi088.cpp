@@ -2,9 +2,12 @@
 #include "bmi088_reg.hpp"
 #include "esp_log.h"
 #include "esp_rom_sys.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
 static const char *TAG = "BMI088";
+
+static portMUX_TYPE acc_mux = portMUX_INITIALIZER_UNLOCKED;
 
 namespace sensor
 {
@@ -20,20 +23,16 @@ BMI088::BMI088(const spi::DeviceConfig &dev_cfg_acc, const spi::DeviceConfig &de
 
 esp_err_t BMI088::init()
 {
-    // 初始化陀螺仪
     esp_err_t ret;
-
-    ret = init_gyroscope();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Gyro init failed");
-        return ret;
-    }
-    vTaskDelay(pdMS_TO_TICKS(1));
-
-    // 初始化加速度计
     ret = init_accelerometer();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Accelerometer init failed");
+        return ret;
+    }
+    vTaskDelay(pdMS_TO_TICKS(1));
+    ret = init_gyroscope();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Gyro init failed");
         return ret;
     }
 
@@ -43,56 +42,116 @@ esp_err_t BMI088::init()
 
 esp_err_t BMI088::init_accelerometer()
 {
+    esp_err_t ret;
     uint8_t chip_id = 0;
-    esp_err_t ret = ESP_OK;
 
-    // 软复位
     ret = spi_bus_.write_reg(acc_handle_, ACC_SOFT_RESET, 0xB6);
-    vTaskDelay(pdMS_TO_TICKS(BMI088_LONG_DELAY_TIME));
+    if (ret != ESP_OK)
+        return ret;
+    vTaskDelay(pdMS_TO_TICKS(50));
 
-    // 读取芯片ID（重试3次）
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         ret = spi_bus_.read_reg(acc_handle_, ACC_CHIP_ID, chip_id);
         if (chip_id == 0x1E)
             break;
-        esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
-        ESP_LOGW(TAG, "Retry ACC ID read (%d/3), current: 0x%02X", i + 1, chip_id);
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
+
     if (chip_id != 0x1E) {
         ESP_LOGE(TAG, "ACC chip ID error: 0x%02X", chip_id);
         return ESP_FAIL;
     }
-    vTaskDelay(pdMS_TO_TICKS(1));
-    // 配置加速度计
 
-    ret |= spi_bus_.write_reg(acc_handle_, ACC_PWR_CONF, BMI088_ACC_PWR_ACTIVE_MODE);
-    esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
-    // ret |= spi_bus_.write_reg(acc_handle_, ACC_IF_CONF, 0x00);
-    // esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
-    ret |= spi_bus_.write_reg(acc_handle_, ACC_CONF, BMI088_ACC_NORMAL | BMI088_ACC_800_HZ | BMI088_ACC_CONF_MUST_Set);
-    esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
-    ret |= spi_bus_.write_reg(acc_handle_, ACC_RANGE, 0x03); // ±24g量程
-    esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
-    ret |= spi_bus_.write_reg(acc_handle_, ACC_PWR_CTRL, BMI088_ACC_ENABLE_ACC_ON);
-    esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
-    // ret |= spi_bus_.write_reg(acc_handle_, ACC_INT_EN_1, 0x01);
-    // esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
-    vTaskDelay(pdMS_TO_TICKS(1));
+    ESP_LOGI(TAG, "ACC chip detected");
+
+    ret = spi_bus_.write_reg(acc_handle_, BMI088_ACC_PWR_CTRL, BMI088_ACC_ENABLE_ACC_ON); // active
+    if (ret != ESP_OK)
+        return ret;
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    ret = spi_bus_.write_reg(acc_handle_, BMI088_ACC_PWR_CONF, BMI088_ACC_PWR_ACTIVE_MODE);
+    if (ret != ESP_OK)
+        return ret;
+    vTaskDelay(pdMS_TO_TICKS(10));
 
     uint8_t pwr_ctrl = 0;
-    for (int i = 0; i < 3; i++) {
-        spi_bus_.read_reg(acc_handle_, ACC_PWR_CTRL, pwr_ctrl);
-        if (pwr_ctrl == 0x04)
+    for (int i = 0; i < 10; i++) {
+        spi_bus_.read_reg(acc_handle_, BMI088_ACC_PWR_CTRL, pwr_ctrl);
+        if (pwr_ctrl & 0x04)
             break;
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
-    if (pwr_ctrl != 0x04) {
-        ESP_LOGE(TAG, "ACC not in measurement mode!");
+
+    if ((pwr_ctrl & 0x04) == 0) {
+        ESP_LOGE(TAG, "ACC failed to enter measurement mode");
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "BMI088 Accelerometer init success (ID: 0x%02X)", chip_id);
-    return ret;
+    // ret = spi_bus_.write_reg(acc_handle_, ACC_CONF, 0xA7);
+    ret = spi_bus_.write_reg(acc_handle_, ACC_CONF, BMI088_ACC_NORMAL | BMI088_ACC_800_HZ | BMI088_ACC_CONF_MUST_Set);
+    if (ret != ESP_OK)
+        return ret;
+    vTaskDelay(pdMS_TO_TICKS(2));
+
+    ret = spi_bus_.write_reg(acc_handle_, ACC_RANGE, BMI088_ACC_RANGE_12G);
+    if (ret != ESP_OK)
+        return ret;
+    vTaskDelay(pdMS_TO_TICKS(2));
+
+    // ret = ensure_acc_range_24g();
+    // if (ret != ESP_OK) {
+    //     ESP_LOGE(TAG, "ACC range 24g init failed");
+    //     return ret;
+    // }
+
+    ESP_LOGI(TAG, "BMI088 Accelerometer init success (±24g)");
+    return ESP_OK;
+}
+
+esp_err_t BMI088::ensure_acc_range_24g()
+{
+    uint8_t raw = 0;
+    esp_err_t ret;
+
+    /* Read current range */
+    ret = spi_bus_.read_reg(acc_handle_, ACC_RANGE, raw);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to read ACC_RANGE");
+        return ret;
+    }
+
+    uint8_t effective = raw & 0x03;
+
+    ESP_LOGI(TAG, "ACC_RANGE current: raw=0x%02X effective=%u", raw, effective);
+
+    if (effective == 0x00) {
+        return ESP_OK;
+    }
+
+    ESP_LOGW(TAG, "ACC not in ±24g, forcing ±24g...");
+
+    /* Force set ±24g (write 0x00) */
+    ret = spi_bus_.write_reg(acc_handle_, ACC_RANGE, 0x00);
+    if (ret != ESP_OK)
+        return ret;
+
+    vTaskDelay(pdMS_TO_TICKS(2));
+
+    /* Verify again */
+    ret = spi_bus_.read_reg(acc_handle_, ACC_RANGE, raw);
+    if (ret != ESP_OK)
+        return ret;
+
+    effective = raw & 0x03;
+
+    ESP_LOGI(TAG, "ACC_RANGE after set: raw=0x%02X effective=%u", raw, effective);
+
+    if (effective != 0x00) {
+        ESP_LOGE(TAG, "ACC failed to enter ±24g mode!");
+        return ESP_FAIL;
+    }
+
+    return ESP_OK;
 }
 
 esp_err_t BMI088::init_gyroscope()
@@ -137,37 +196,56 @@ esp_err_t BMI088::init_gyroscope()
 
 esp_err_t BMI088::read_accelerometer(Data &data)
 {
-    uint8_t acc_data[6] = {0};
+    esp_err_t ret;
     uint8_t status = 0;
-    esp_err_t ret = ESP_OK;
+    uint8_t buf[6] = {0};
 
-    // 等待数据就绪
-    int retry = 0;
-    do {
+    constexpr int MAX_RETRY = 3;
+    bool ready = false;
+
+    for (int i = 0; i < MAX_RETRY; i++) {
         ret = spi_bus_.read_reg(acc_handle_, ACC_STATUS, status);
-        retry++;
+        if (ret != ESP_OK) {
+            data = last_acc_data_;
+            return ret;
+        }
+
+        if (status & 0x80) {
+            ready = true;
+            break;
+        }
+
         vTaskDelay(pdMS_TO_TICKS(1));
-    } while ((status & 0x80) == 0 && retry < 8);
-
-    // 数据未就绪用上次数据
-    // if (retry >= 8) {
-    //     ESP_LOGW(TAG, "ACC data not ready");
-    //     data.acc_x = last_acc_data_.acc_x;
-    //     data.acc_y = last_acc_data_.acc_y;
-    //     data.acc_z = last_acc_data_.acc_z;
-    //     return ESP_OK;
-    // }
-
-    // 读取加速度数据
-    ret = spi_bus_.read_regs(acc_handle_, ACC_DATA_X_LSB, 6, acc_data);
-    if (ret == ESP_OK) {
-        data.acc_x = (int16_t)((acc_data[1] << 8) | acc_data[0]);
-        data.acc_y = (int16_t)((acc_data[3] << 8) | acc_data[2]);
-        data.acc_z = (int16_t)((acc_data[5] << 8) | acc_data[4]);
-        last_acc_data_ = data;
     }
 
-    return ret;
+    if (!ready) {
+        data = last_acc_data_;
+        return ESP_OK;
+    }
+
+    taskENTER_CRITICAL(&acc_mux);
+    ret = spi_bus_.read_regs(acc_handle_, ACC_DATA_X_LSB, 6, buf);
+    taskEXIT_CRITICAL(&acc_mux);
+    if (ret != ESP_OK) {
+        data = last_acc_data_;
+        return ret;
+    }
+
+    Data new_data = data;
+
+    new_data.acc_x = (int16_t)((buf[1] << 8) | buf[0]);
+    new_data.acc_y = (int16_t)((buf[3] << 8) | buf[2]);
+    new_data.acc_z = (int16_t)((buf[5] << 8) | buf[4]);
+
+    ESP_LOGI(TAG, "ACC: %d, %d, %d", new_data.acc_x, new_data.acc_y, new_data.acc_z);
+    uint8_t range;
+    spi_bus_.read_reg(acc_handle_, ACC_RANGE, range);
+    ESP_LOGI(TAG, "ACC_RANGE = 0x%02X", range);
+
+    last_acc_data_ = new_data;
+    data = new_data;
+
+    return ESP_OK;
 }
 
 esp_err_t BMI088::read_gyroscope(Data &data)

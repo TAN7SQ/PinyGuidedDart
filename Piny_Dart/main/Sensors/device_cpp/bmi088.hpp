@@ -53,21 +53,25 @@ namespace sensor
 class BMI088
 {
 public:
-// 加速度计±24g量程（核心参数）
-#define ACC_FS_24G 24.0f
-// 陀螺仪±2000°/s量程（核心参数，统一宏管理）
 #define GYRO_FS_2000DPS 2000.0f
 // 1g对应的重力加速度（工程常用）
 #define GRAVITY 9.81f
 // 16位ADC最大有效值（加速度计/陀螺仪通用）
 #define ADC_MAX_VAL 32767.0f
-// 角度转弧度系数（°/s → rad/s 用，统一宏管理）
 #define DEG2RAD 0.0174533f
-    static constexpr float ACC_SENS_24G = 1365.0f;
 
-    // 加速度计±24g刻度因子 → g/LSB（和原有一致，static constexpr 编译期常量）
-    static constexpr float acc_scale_24g = ACC_FS_24G / ADC_MAX_VAL;
-    // 陀螺仪±2000°/s刻度因子 → °/s/LSB（和加速度计对齐，编译期常量，替代硬编码）
+    enum class AccRange
+    {
+        G3 = 0,
+        G6 = 1,
+        G12 = 2,
+        G24 = 3,
+    };
+
+    static constexpr float acc_lsb_per_g[] = {10920.0f, 5460.0f, 2730.0f, 1365.0f};
+
+    static constexpr float ACC_SENS_24G = acc_lsb_per_g[static_cast<int>(AccRange::G12)];
+
     static constexpr float gyro_scale_2000dps = GYRO_FS_2000DPS / ADC_MAX_VAL;
 
     struct Data
@@ -142,6 +146,7 @@ private:
 
     Data last_acc_data_{};
 
+    esp_err_t ensure_acc_range_24g();
     esp_err_t init_accelerometer();
     esp_err_t init_gyroscope();
 
