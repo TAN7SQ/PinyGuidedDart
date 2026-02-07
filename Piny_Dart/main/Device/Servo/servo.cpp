@@ -80,5 +80,6 @@ esp_err_t Servo::Initialize()
         vTaskDelay(pdMS_TO_TICKS(10));
     }
     SetAngle(ALL, 30);
+    ESP_LOGI(TAG, "Servo initialized");
     return ESP_OK;
 }

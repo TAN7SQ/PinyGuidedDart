@@ -268,7 +268,7 @@ void AttitudeEKF::Update(const Vec3 &acc_meas)
                       S[0][1] * (S[1][0] * S[2][2] - S[1][2] * S[2][0]) +
                       S[0][2] * (S[1][0] * S[2][1] - S[1][1] * S[2][0]);
     if (std::fabsf(det) < 1e-9f)
-        return; 
+        return;
     const float inv_det = 1.0f / det;
 
     S_inv[0][0] = (S[1][1] * S[2][2] - S[1][2] * S[2][1]) * inv_det;
@@ -426,4 +426,9 @@ void AttitudeEKF::StaticDetect(const Vec3 &gyro, const Vec3 &acc)
     gyro_norm = std::sqrtf(gyro.x * gyro.x + gyro.y * gyro.y + gyro.z * gyro.z);
     accel_norm = std::sqrtf(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
     is_static = (gyro_norm < static_gyro_thresh_) && (std::fabsf(accel_norm - g_) < static_accel_dev_);
+}
+
+void AttitudeEKF::GetAttitude(Quat &q) const
+{
+    q = x.quat;
 }

@@ -114,7 +114,7 @@ WifiUdpClient::~WifiUdpClient()
 esp_err_t WifiUdpClient::init(const WifiUdpConfig &config, void (*cb)(void))
 {
     if (m_isInited) {
-        ESP_LOGW(TAG, "Already inited, skip");
+        // ESP_LOGW(TAG, "Already inited, skip");
         return ESP_OK;
     }
 
@@ -199,13 +199,13 @@ esp_err_t WifiUdpClient::ipStrToIp4(const char *ip_str, esp_ip4_addr_t &ip)
 esp_err_t WifiUdpClient::sendData(const uint8_t *data, uint16_t len)
 {
     if (!m_isInited || data == nullptr || len == 0 || len > UDP_SEND_DATA_MAX_LEN) {
-        ESP_LOGE(TAG, "Send data fail: invalid params or not inited");
+        ESP_LOGD(TAG, "Send data fail: invalid params or not inited");
         return ESP_FAIL;
     }
 
     BaseType_t queueRet = xQueueSend(m_udpSendQueue, data, pdMS_TO_TICKS(0));
     if (queueRet != pdPASS) {
-        ESP_LOGE(TAG, "UDP send queue full, drop data (len: %d)", len);
+        ESP_LOGD(TAG, "UDP send queue full, drop data (len: %d)", len);
         return ESP_FAIL;
     }
 
@@ -413,6 +413,6 @@ void WifiUdpClient::doUdpSend(const uint8_t *data, uint16_t len)
         ESP_LOGE(TAG, "UDP send fail, errno: %d, data: %s", errno, (const char *)data);
     }
     else {
-        ESP_LOGI(TAG, "UDP send success: %s (len: %d)", (const char *)data, sendLen);
+        // ESP_LOGI(TAG, "UDP send success: %s (len: %d)", (const char *)data, sendLen);
     }
 }

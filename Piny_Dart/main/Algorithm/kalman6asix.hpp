@@ -33,8 +33,9 @@ public:
     void Predict(const AuxMath::Vec3 &gyro_meas, float dt);
     void Update(const AuxMath::Vec3 &acc_meas);
     void StaticDetect(const AuxMath::Vec3 &gyro, const AuxMath::Vec3 &acc);
-    void CalculateAccelOnlyEuler(const AuxMath::Vec3 &acc_meas);
     void QuatToEuler(const AuxMath::Quat &q, float &roll, float &pitch, float &yaw) const;
+    void GetAttitude(AuxMath::Quat &q) const;
+    void CalculateAccelOnlyEuler(const AuxMath::Vec3 &acc_meas);
 
     AuxMath::EKFState x;    // 核心状态：姿态+偏置
     AuxMath::Mat7x7 P;      // 协方差矩阵

@@ -50,6 +50,8 @@ public:
 
     TF_Card tfCard;
     WifiUdpClient &client; // 引用成员只能在初始化列表中初始化, 不能在构造函数中初始化
+    static WifiUdpClient *sClient;
+
     WifiUdpClient::WifiUdpConfig client_config;
 
 private:

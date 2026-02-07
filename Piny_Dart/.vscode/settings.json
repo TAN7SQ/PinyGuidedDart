@@ -13,7 +13,7 @@
     "--query-driver=e:\\ENV\\ESP32_IDF\\V5_4_2\\TOOLS\\tools\\xtensa-esp-elf\\esp-14.2.0_20241119\\xtensa-esp-elf\\bin\\xtensa-esp32-elf-gcc.exe",
     "--compile-commands-dir=${workspaceFolder}\\build"
   ],
-  "idf.portWin": "COM9",
+  "idf.portWin": "COM10",
   "idf.flashType": "UART",
   "compileCommands": "${workspaceFolder}\\build\\compile_commands.json"
 }

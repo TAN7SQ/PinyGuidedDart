@@ -64,19 +64,19 @@ esp_err_t BMI088::init_accelerometer()
     }
     vTaskDelay(pdMS_TO_TICKS(1));
     // 配置加速度计
-    ret |= spi_bus_.write_reg(acc_handle_, ACC_PWR_CTRL, BMI088_ACC_ENABLE_ACC_ON);
-    esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
+
     ret |= spi_bus_.write_reg(acc_handle_, ACC_PWR_CONF, BMI088_ACC_PWR_ACTIVE_MODE);
     esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
     // ret |= spi_bus_.write_reg(acc_handle_, ACC_IF_CONF, 0x00);
     // esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
-    ret |= spi_bus_.write_reg(
-        acc_handle_, ACC_CONF, BMI088_ACC_NORMAL | BMI088_ACC_800_HZ | BMI088_ACC_CONF_MUST_Set); // 800Hz输出
+    ret |= spi_bus_.write_reg(acc_handle_, ACC_CONF, BMI088_ACC_NORMAL | BMI088_ACC_800_HZ | BMI088_ACC_CONF_MUST_Set);
     esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
     ret |= spi_bus_.write_reg(acc_handle_, ACC_RANGE, 0x03); // ±24g量程
     esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
-    ret |= spi_bus_.write_reg(acc_handle_, ACC_INT_EN_1, 0x01);
+    ret |= spi_bus_.write_reg(acc_handle_, ACC_PWR_CTRL, BMI088_ACC_ENABLE_ACC_ON);
     esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
+    // ret |= spi_bus_.write_reg(acc_handle_, ACC_INT_EN_1, 0x01);
+    // esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
     vTaskDelay(pdMS_TO_TICKS(1));
 
     uint8_t pwr_ctrl = 0;
@@ -108,10 +108,10 @@ esp_err_t BMI088::init_gyroscope()
     // }
 
     // 软复位
-    ret |= spi_bus_.write_reg(gyro_handle_, 0x14, 0xB6);
-    vTaskDelay(pdMS_TO_TICKS(20));
+    ESP_ERROR_CHECK(spi_bus_.write_reg(gyro_handle_, BMI088_GYRO_SOFTRESET, BMI088_GYRO_SOFTRESET_VALUE));
+    vTaskDelay(pdMS_TO_TICKS(30));
     for (int i = 0; i < 4; i++) {
-        ret = spi_bus_.read_reg(gyro_handle_, GYRO_CHIP_ID, chip_id);
+        ESP_ERROR_CHECK(spi_bus_.read_reg(gyro_handle_, GYRO_CHIP_ID, chip_id));
         if (chip_id == 0x0F)
             break;
         esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
@@ -123,12 +123,13 @@ esp_err_t BMI088::init_gyroscope()
     }
 
     // 配置陀螺仪
-    ret |= spi_bus_.write_reg(gyro_handle_, BMI088_GYRO_BANDWIDTH, BMI088_GYRO_1000_116_HZ); // 1000Hz输出
+    ESP_ERROR_CHECK(spi_bus_.write_reg(
+        gyro_handle_, BMI088_GYRO_BANDWIDTH, BMI088_GYRO_2000_230_HZ | BMI088_GYRO_BANDWIDTH_MUST_Set)); // 1000Hz输出
     esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
-    ret |= spi_bus_.write_reg(gyro_handle_, BMI088_GYRO_RANGE, BMI088_GYRO_2000); // ±2000°/s量程
+    ESP_ERROR_CHECK(spi_bus_.write_reg(gyro_handle_, BMI088_GYRO_RANGE, BMI088_GYRO_2000)); // ±2000°/s量程
     esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
-    // ret |= spi_bus_.write_reg(gyro_handle_, BMI088_GYRO_CTRL, BMI088_DRDY_ON); // 使能数据就绪中断
-    // esp_rom_delay_us(BMI088_COM_WAIT_SENSOR_TIME);
+    ESP_ERROR_CHECK(spi_bus_.write_reg(gyro_handle_, BMI088_GYRO_LPM1, BMI088_GYRO_NORMAL_MODE));
+    vTaskDelay(pdMS_TO_TICKS(30));
 
     ESP_LOGI(TAG, "BMI088 Gyroscope init success (ID: 0x%02X)", chip_id);
     return ret;
@@ -171,7 +172,6 @@ esp_err_t BMI088::read_accelerometer(Data &data)
 
 esp_err_t BMI088::read_gyroscope(Data &data)
 {
-
     uint8_t gyro_data[6] = {0};
     esp_err_t ret = spi_bus_.read_regs(gyro_handle_, GYRO_RATE_X_LSB, 6, gyro_data);
     if (ret != ESP_OK) {
@@ -201,7 +201,10 @@ esp_err_t BMI088::read_data(Data &data)
         return ret;
 
     ret = read_gyroscope(data);
-    return ret;
+    if (ret != ESP_OK)
+        return ret;
+
+    return ESP_OK;
 }
 
 std::string BMI088::Data::to_string() const

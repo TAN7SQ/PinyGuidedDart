@@ -53,6 +53,23 @@ namespace sensor
 class BMI088
 {
 public:
+// 加速度计±24g量程（核心参数）
+#define ACC_FS_24G 24.0f
+// 陀螺仪±2000°/s量程（核心参数，统一宏管理）
+#define GYRO_FS_2000DPS 2000.0f
+// 1g对应的重力加速度（工程常用）
+#define GRAVITY 9.81f
+// 16位ADC最大有效值（加速度计/陀螺仪通用）
+#define ADC_MAX_VAL 32767.0f
+// 角度转弧度系数（°/s → rad/s 用，统一宏管理）
+#define DEG2RAD 0.0174533f
+    static constexpr float ACC_SENS_24G = 1365.0f;
+
+    // 加速度计±24g刻度因子 → g/LSB（和原有一致，static constexpr 编译期常量）
+    static constexpr float acc_scale_24g = ACC_FS_24G / ADC_MAX_VAL;
+    // 陀螺仪±2000°/s刻度因子 → °/s/LSB（和加速度计对齐，编译期常量，替代硬编码）
+    static constexpr float gyro_scale_2000dps = GYRO_FS_2000DPS / ADC_MAX_VAL;
+
     struct Data
     {
         int16_t acc_x{0};
@@ -62,29 +79,46 @@ public:
         int16_t gyro_y{0};
         int16_t gyro_z{0};
 
+        // 加速度计数据转换为g单位（原有逻辑，保留）
         float acc_x_g() const
         {
-            return acc_x * 0.000088f;
+            return acc_x / ACC_SENS_24G;
         }
         float acc_y_g() const
         {
-            return acc_y * 0.000088f;
+            return acc_y / ACC_SENS_24G;
         }
         float acc_z_g() const
         {
-            return acc_z * 0.000088f;
+            return acc_z / ACC_SENS_24G;
         }
+
+        // 陀螺仪数据转换为°/s单位（和加速度计对齐，替换硬编码，清晰可维护）
         float gyro_x_dps() const
         {
-            return gyro_x * 0.0152588f;
+            return gyro_x * gyro_scale_2000dps;
         }
         float gyro_y_dps() const
         {
-            return gyro_y * 0.0152588f;
+            return gyro_y * gyro_scale_2000dps;
         }
         float gyro_z_dps() const
         {
-            return gyro_z * 0.0152588f;
+            return gyro_z * gyro_scale_2000dps;
+        }
+
+        // 【可选扩展】直接转姿态解算需要的rad/s单位（一步到位，无需二次计算）
+        float gyro_x_rads() const
+        {
+            return gyro_x_dps() * DEG2RAD;
+        }
+        float gyro_y_rads() const
+        {
+            return gyro_y_dps() * DEG2RAD;
+        }
+        float gyro_z_rads() const
+        {
+            return gyro_z_dps() * DEG2RAD;
         }
 
         std::string to_string() const;
@@ -93,15 +127,13 @@ public:
     explicit BMI088(const spi::DeviceConfig &dev_cfg_acc, const spi::DeviceConfig &dev_cfg_gyro);
 
     BMI088(const BMI088 &) = delete;
+    ~BMI088();
     BMI088 &operator=(const BMI088 &) = delete;
     BMI088(BMI088 &&) = delete;
     BMI088 &operator=(BMI088 &&) = delete;
 
     esp_err_t init();
-
     esp_err_t read_data(Data &data);
-
-    ~BMI088();
 
 private:
     spi::SPIBus &spi_bus_;
