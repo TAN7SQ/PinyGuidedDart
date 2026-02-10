@@ -165,6 +165,7 @@ void SensorSpiTask(void *pvParameters)
     SixAxisIMU::IMURawData init_data;
     init_data.acc = accVec3;
     imu_filter.initAttitude(init_data.acc);
+    vTaskDelay(pdMS_TO_TICKS(1));
 
     while (1) {
         ret = bmi088.read_data(data);
@@ -372,7 +373,7 @@ void Application::Initialize()
     vTaskDelay(pdMS_TO_TICKS(100));
 
     xTaskCreatePinnedToCore(HostPCTask, "HostPCTask", 4096, &this->client, tskIDLE_PRIORITY + 3, NULL, 0);
-    // xTaskCreatePinnedToCore(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
+    xTaskCreatePinnedToCore(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
 
     vTaskDelay(pdMS_TO_TICKS(100));
 

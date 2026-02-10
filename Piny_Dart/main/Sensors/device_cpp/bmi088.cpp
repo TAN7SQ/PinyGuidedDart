@@ -223,9 +223,9 @@ esp_err_t BMI088::read_accelerometer(Data &data)
         return ESP_OK;
     }
 
-    taskENTER_CRITICAL(&acc_mux);
+    // taskENTER_CRITICAL(&acc_mux);
     ret = spi_bus_.read_regs(acc_handle_, ACC_DATA_X_LSB, 6, buf);
-    taskEXIT_CRITICAL(&acc_mux);
+    // taskEXIT_CRITICAL(&acc_mux);
     if (ret != ESP_OK) {
         data = last_acc_data_;
         return ret;
