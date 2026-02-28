@@ -138,6 +138,7 @@ public:
 
     esp_err_t init();
     esp_err_t read_data(Data &data);
+    esp_err_t calibrate(uint8_t times);
 
 private:
     spi::SPIBus &spi_bus_;
@@ -145,6 +146,8 @@ private:
     spi_device_handle_t gyro_handle_ = nullptr;
 
     Data last_acc_data_{};
+    float _accel_bias[3] = {0.0f};
+    float _gyro_bias[3] = {0.0f};
 
     esp_err_t ensure_acc_range_24g();
     esp_err_t init_accelerometer();

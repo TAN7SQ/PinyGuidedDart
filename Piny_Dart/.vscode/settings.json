@@ -15,5 +15,6 @@
   ],
   "idf.portWin": "COM10",
   "idf.flashType": "UART",
-  "compileCommands": "${workspaceFolder}\\build\\compile_commands.json"
+  "compileCommands": "${workspaceFolder}\\build\\compile_commands.json",
+  "idf.currentSetup": "e:\\ENV\\ESP32_IDF\\V5_4_2\\v5.4.2\\esp-idf"
 }

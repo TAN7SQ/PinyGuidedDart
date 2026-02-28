@@ -66,8 +66,8 @@ void LedTask(void *pvParameters)
 
     while (1) {
         gpio_set_level(GPIO_NUM_38, 0);
-        ws2812b_RGBOn(led_strip, 0, 70, 70, 70);
-        ws2812b_RGBOn(led_strip, 1, 70, 70, 70);
+        ws2812b_RGBOn(led_strip, 0, 20, 20, 20);
+        ws2812b_RGBOn(led_strip, 1, 20, 20, 20);
         vTaskDelay(pdMS_TO_TICKS(500));
         ws2812b_Off(led_strip, 0);
         ws2812b_Off(led_strip, 1);
@@ -110,24 +110,24 @@ void SensorI2cTask(void *pvParameters)
 #include "kalman6asix.hpp"
 void SensorSpiTask(void *pvParameters)
 {
+    /*
+        spi::BusConfig spi_bus_config = {
+            .host_num = SPI2_HOST,
+            .sclk_pin = GPIO_NUM_13, //
+            .mosi_pin = GPIO_NUM_12, //
+            .miso_pin = GPIO_NUM_11, //
+        };
+        spi::SPIBus &spiBus = spi::SPIBus::get_instance(spi_bus_config);
 
-    // spi::BusConfig spi_bus_config = {
-    //     .host_num = SPI2_HOST,
-    //     .sclk_pin = GPIO_NUM_13, //
-    //     .mosi_pin = GPIO_NUM_12, //
-    //     .miso_pin = GPIO_NUM_11, //
-    // };
-    // spi::SPIBus &spiBus = spi::SPIBus::get_instance(spi_bus_config);
-
-    // spi::DeviceConfig bmi088_acc_cfg = {
-    //     .clock_speed_hz = 1 * 1000 * 1000,
-    //     .cs_pin = GPIO_NUM_9,
-    // };
-    // spi::DeviceConfig bmi088_gyro_cfg = {
-    //     .clock_speed_hz = 1 * 1000 * 1000,
-    //     .cs_pin = GPIO_NUM_10,
-    // };
-
+        spi::DeviceConfig bmi088_acc_cfg = {
+            .clock_speed_hz = 1 * 1000 * 1000,
+            .cs_pin = GPIO_NUM_9,
+        };
+        spi::DeviceConfig bmi088_gyro_cfg = {
+            .clock_speed_hz = 1 * 1000 * 1000,
+            .cs_pin = GPIO_NUM_10,
+        };
+        */
     spi::BusConfig spi_bus_config = {
         .host_num = SPI2_HOST,
         .sclk_pin = GPIO_NUM_33, //
@@ -167,13 +167,20 @@ void SensorSpiTask(void *pvParameters)
     imu_filter.initAttitude(init_data.acc);
     vTaskDelay(pdMS_TO_TICKS(1));
 
+    ret = bmi088.calibrate(500);
+    if (ret != ESP_OK) {
+        ESP_LOGE(Application::TAG, "BMI088 calibration failed: %s", esp_err_to_name(ret));
+        vTaskDelete(NULL);
+        return;
+    }
+
     while (1) {
         ret = bmi088.read_data(data);
         if (ret != ESP_OK) {
             ESP_LOGE(Application::TAG, "BMI088 read data failed: %s", esp_err_to_name(ret));
             continue;
         }
-        // // printf("%d,%d,%d,%d,%d,%d\n", data.acc_x, data.acc_y, data.acc_z, data.gyro_x, data.gyro_y, data.gyro_z);
+        // printf("%d,%d,%d,%d,%d,%d\n", data.acc_x, data.acc_y, data.acc_z, data.gyro_x, data.gyro_y, data.gyro_z);
         // printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
         //        data.acc_x_g(),
         //        data.acc_y_g(),
@@ -181,31 +188,31 @@ void SensorSpiTask(void *pvParameters)
         //        data.gyro_x_dps(),
         //        data.gyro_y_dps(),
         //        data.gyro_z_dps());
-        // AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
-        // ekf.CalculateAccelOnlyEuler(accVec3);
 
-        AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
+        // AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
         AuxMath::Vec3 gyroVec3(data.gyro_x_dps(), data.gyro_y_dps(), data.gyro_z_dps());
-        init_data.gyro = gyroVec3;
-        init_data.acc = accVec3;
-        SixAxisIMU::IMUAttitude imu_attitude = imu_filter.update(init_data, IMU_UPDATE_DT);
-        float roll_def = imu_attitude.euler.x * 57.2958f;
-        float pitch_def = imu_attitude.euler.y * 57.2958f;
-        float yaw_def = imu_attitude.euler.z * 57.2958f;
+        // init_data.gyro = gyroVec3;
+        // init_data.acc = accVec3;
+        // SixAxisIMU::IMUAttitude imu_attitude = imu_filter.update(init_data, IMU_UPDATE_DT);
+        // float roll_def = imu_attitude.euler.x * 57.2958f;
+        // float pitch_def = imu_attitude.euler.y * 57.2958f;
+        // float yaw_def = imu_attitude.euler.z * 57.2958f;
         // printf("{filter}%.2f,%.2f,%.2f\n", roll_def, pitch_def, yaw_def);
 
-        // ekf.StaticDetect(gyroVec3, accVec3);
-        // ekf.Update(accVec3);
-        // ekf.Predict(gyroVec3, 0.01);
-        // AuxMath::Quat q;
-        // ekf.GetAttitude(q);
-        // AuxMath::Vec3 euler;
-        // AuxMath::QuatToEuler(q, euler);
-        // ESP_LOGI(Application::TAG, //
-        //          "%.2f,%.2f,%.2f", //
-        //          euler.x,
-        //          euler.y,
-        //          euler.z);
+        AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
+        ekf.CalculateAccelOnlyEuler(accVec3);
+        ekf.StaticDetect(gyroVec3, accVec3);
+        ekf.Update(accVec3);
+        ekf.Predict(gyroVec3, 0.01);
+        AuxMath::Quat q;
+        ekf.GetAttitude(q);
+        AuxMath::Vec3 euler;
+        AuxMath::QuatToEuler(q, euler);
+        ESP_LOGI(Application::TAG, //
+                 "%.2f,%.2f,%.2f", //
+                 euler.x,
+                 euler.y,
+                 euler.z);
         // 发送队列
         // ESP_LOGI(Application::TAG,
         //          "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f",
@@ -227,6 +234,14 @@ void SensorSpiTask(void *pvParameters)
                 data.gyro_x_dps(),
                 data.gyro_y_dps(),
                 data.gyro_z_dps());
+        // sprintf(imu_attitude_str,
+        //         "%d,%d,%d,%d,%d,%d\n",
+        //         data.acc_x,
+        //         data.acc_y,
+        //         data.acc_z,
+        //         data.gyro_x,
+        //         data.gyro_y,
+        //         data.gyro_z);
         // sprintf(imu_attitude_str, "%.2f,%.2f,%.2f\n", roll_def, pitch_def, yaw_def);
         Application::sClient->sendData((const uint8_t *)imu_attitude_str, strlen(imu_attitude_str));
         vTaskDelay(pdMS_TO_TICKS(IMU_UPDATE_DT * 1000));
@@ -372,7 +387,7 @@ void Application::Initialize()
 
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    xTaskCreatePinnedToCore(HostPCTask, "HostPCTask", 4096, &this->client, tskIDLE_PRIORITY + 3, NULL, 0);
+    // xTaskCreatePinnedToCore(HostPCTask, "HostPCTask", 4096, &this->client, tskIDLE_PRIORITY + 3, NULL, 0);
     xTaskCreatePinnedToCore(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
 
     vTaskDelay(pdMS_TO_TICKS(100));

@@ -4,6 +4,7 @@
 #include "esp_rom_sys.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "stdio.h"
 
 static const char *TAG = "BMI088";
 
@@ -237,10 +238,15 @@ esp_err_t BMI088::read_accelerometer(Data &data)
     new_data.acc_y = (int16_t)((buf[3] << 8) | buf[2]);
     new_data.acc_z = (int16_t)((buf[5] << 8) | buf[4]);
 
-    ESP_LOGI(TAG, "ACC: %d, %d, %d", new_data.acc_x, new_data.acc_y, new_data.acc_z);
-    uint8_t range;
-    spi_bus_.read_reg(acc_handle_, ACC_RANGE, range);
-    ESP_LOGI(TAG, "ACC_RANGE = 0x%02X", range);
+    // 减去bias
+    new_data.acc_x -= _accel_bias[0];
+    new_data.acc_y -= _accel_bias[1];
+    new_data.acc_z -= _accel_bias[2];
+
+    // printf("%d, %d, %d\n", new_data.acc_x, new_data.acc_y, new_data.acc_z);
+    // uint8_t range;
+    // spi_bus_.read_reg(acc_handle_, ACC_RANGE, range);
+    // ESP_LOGI(TAG, "ACC_RANGE = 0x%02X", range);
 
     last_acc_data_ = new_data;
     data = new_data;
@@ -260,6 +266,11 @@ esp_err_t BMI088::read_gyroscope(Data &data)
     int16_t gyro_x = (int16_t)((gyro_data[1] << 8) | gyro_data[0]);
     int16_t gyro_y = (int16_t)((gyro_data[3] << 8) | gyro_data[2]);
     int16_t gyro_z = (int16_t)((gyro_data[5] << 8) | gyro_data[4]);
+
+    // 减去bias
+    gyro_x -= _gyro_bias[0];
+    gyro_y -= _gyro_bias[1];
+    gyro_z -= _gyro_bias[2];
 
     data.gyro_x = gyro_x;
     data.gyro_y = gyro_y;
@@ -312,6 +323,50 @@ BMI088::~BMI088()
         gyro_handle_ = nullptr;
     }
     ESP_LOGI(TAG, "BMI088 device released");
+}
+
+esp_err_t BMI088::calibrate(uint8_t times)
+{
+    int16_t accel_raw[3] = {0};
+    int16_t gyro_raw[3] = {0};
+
+    float accel_bias[3] = {0.0f};
+    float gyro_bias[3] = {0.0f};
+
+    Data data;
+    if (times == 0) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    for (int i = 0; i < times; i++) {
+        esp_err_t ret = read_data(data);
+        if (ret != ESP_OK) {
+            return ret;
+        }
+
+        accel_raw[0] += data.acc_x;
+        accel_raw[1] += data.acc_y;
+        accel_raw[2] += data.acc_z;
+
+        gyro_raw[0] += data.gyro_x;
+        gyro_raw[1] += data.gyro_y;
+        gyro_raw[2] += data.gyro_z;
+
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    for (int i = 0; i < 3; i++) {
+        accel_bias[i] = (float)accel_raw[i] / (float)times;
+        gyro_bias[i] = (float)gyro_raw[i] / (float)times;
+    }
+    _accel_bias[0] = accel_bias[0];
+    _accel_bias[1] = accel_bias[1];
+    _accel_bias[2] = accel_bias[2];
+    _gyro_bias[0] = gyro_bias[0];
+    _gyro_bias[1] = gyro_bias[1];
+    _gyro_bias[2] = gyro_bias[2];
+
+    ESP_LOGI(TAG, "accel_bias: %.2f, %.2f, %.2f", _accel_bias[0], _accel_bias[1], _accel_bias[2]);
+    ESP_LOGI(TAG, "gyro_bias: %.2f, %.2f, %.2f", _gyro_bias[0], _gyro_bias[1], _gyro_bias[2]);
+    return ESP_OK;
 }
 
 } // namespace sensor
