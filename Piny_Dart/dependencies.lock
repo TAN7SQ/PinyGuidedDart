@@ -1,4 +1,28 @@
 dependencies:
+  espp/format:
+    component_hash: ef925aec02e24c3466d6ccbae27a90d6fd80ef78ebcb91868b8a619d788bd38b
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 1.0.35
+  espp/math:
+    component_hash: d1de6989e04cb49a4d72d679573b11b70e200c2a2496ea1c71532d2c1a0b8250
+    dependencies:
+    - name: espp/format
+      registry_url: https://components.espressif.com
+      require: private
+      version: '>=0.22.0'
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 0.22.1
   espressif/led_strip:
     component_hash: f0d1b7f93eb3ee57bcfd220656176b0b5616e1947f89ed44364555cf910c4840
     dependencies:
@@ -34,10 +58,11 @@ dependencies:
       type: idf
     version: 5.4.2
 direct_dependencies:
+- espp/math
 - espressif/led_strip
 - espressif/servo
 - hayschan/buzzer
 - idf
-manifest_hash: 4cddb90a0fe52a4376a8963c66f360543abae2924e71813a92f4a9c64b30aa44
+manifest_hash: 0d39ceecd5b5cb0a646a0e3337288b69984406b77c2b6b24e19e3d512e99d7bf
 target: esp32s3
 version: 2.0.0

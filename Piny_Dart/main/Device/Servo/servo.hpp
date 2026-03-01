@@ -47,21 +47,24 @@ public:
     enum ServoCH_e
     {
         LF0 = 0,
-        LF1,
+        // LF1,
         RF0,
-        RF1,
+        // RF1,
 
         LB0,
         LB1,
         RB0,
         RB1,
 
+        FAN,
+
         ALL
     };
 
     Servo();
     esp_err_t Initialize();
-    esp_err_t SetAngle(ServoCH_e ch, int angle);
+    esp_err_t SetAngle(ServoCH_e ch, uint8_t angle);
+    esp_err_t SetAngles(uint16_t angles[ALL]);
 
 private:
     static constexpr const char *TAG = "SERVO";
@@ -90,11 +93,11 @@ private:
     static constexpr ServoLimit limits[] = {
         {600, 2400, 10}, // LF0
         {600, 2400, 10}, // LF1
-        {550, 2450, 12}, // RF0
-        {550, 2450, 12}, // RF1
-        {500, 2500, 15}, // LB0
-        {500, 2500, 15}, // LB1
-        {500, 2500, 15}, // RB0
+        {550, 2450, 10}, // RF0
+        {550, 2450, 10}, // RF1
+        {500, 2500, 10}, // LB0
+        {500, 2500, 10}, // LB1
+        {500, 2500, 10}, // RB0
         // {500, 2500, 15}, // RB1  // FIXME：发现好像如果使用8个，RMT会出问题
     };
     uint32_t last_pulse_us[NUM_SERVO] = {0};

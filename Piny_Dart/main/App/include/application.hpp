@@ -55,6 +55,9 @@ public:
     WifiUdpClient::WifiUdpConfig client_config;
 
 private:
+
+    esp_err_t InitSem(void);
+
     SemaphoreHandle_t xTFCardMutex = NULL;
     QueueHandle_t xSpiSensorQueue = NULL;
     QueueHandle_t xI2cSensorQueue = NULL;

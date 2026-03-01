@@ -53,6 +53,7 @@ set(ALGORITHM_SOURCES
     "Algorithm/kalman6asix.cpp"
     "Algorithm/AuxiliaryMath.cpp"
     "Algorithm/complementary6asix.cpp"
+    "Algorithm/Calibrate/calibrate.cpp"
 )
 
 
@@ -88,6 +89,7 @@ set(APP_INCLUDE_DIRS
     "mLog"  # mLog归类到App模块，若需独立可单独定义
     "Protocol"
     "Algorithm"
+    "Algorithm/Calibrate"
 )
 
 # 合并所有包含目录

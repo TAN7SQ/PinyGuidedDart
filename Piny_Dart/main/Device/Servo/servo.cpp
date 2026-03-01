@@ -39,7 +39,7 @@ uint32_t Servo::us_to_duty(uint32_t us)
     return (us * max_duty) / period_us;
 }
 
-esp_err_t Servo::SetAngle(ServoCH_e ch, int angle)
+esp_err_t Servo::SetAngle(ServoCH_e ch, uint8_t angle)
 {
     if (angle < 0)
         angle = 0;
@@ -69,6 +69,14 @@ esp_err_t Servo::SetAngle(ServoCH_e ch, int angle)
     }
     else {
         apply(ch);
+    }
+    return ESP_OK;
+}
+
+esp_err_t Servo::SetAngles(uint16_t angles[ALL])
+{
+    for (int i = 0; i < NUM_SERVO; i++) {
+        SetAngle((ServoCH_e)i, angles[i]);
     }
     return ESP_OK;
 }

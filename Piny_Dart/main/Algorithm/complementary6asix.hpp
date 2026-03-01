@@ -1,24 +1,10 @@
 #ifndef SIX_AXIS_IMU_HPP
 #define SIX_AXIS_IMU_HPP
 
-#include "AuxiliaryMath.hpp" // 兼容你之前的数学工具库（Vec3/Quat）
+#include "AuxiliaryMath.hpp"
 
-namespace SixAxisIMU
+namespace xAxisIMU
 {
-
-// IMU原始数据结构体（陀螺仪+加速度计，单位：弧度/秒、m/s²）
-struct IMURawData
-{
-    AuxMath::Vec3 gyro; // 陀螺仪数据：x(roll)、y(pitch)、z(yaw)，单位rad/s
-    AuxMath::Vec3 acc;  // 加速度计数据：x、y、z，单位m/s²
-};
-
-// 姿态解算结果结构体（欧拉角+四元数，姿态角单位：弧度）
-struct IMUAttitude
-{
-    AuxMath::Vec3 euler; // 欧拉角：x(roll)、y(pitch)、z(yaw)，单位rad
-    AuxMath::Quat quat;  // 姿态四元数（单位四元数，推荐工程使用）
-};
 
 // 六轴IMU互补滤波姿态解算类
 class ComplementaryFilter
@@ -86,6 +72,6 @@ private:
     AuxMath::Quat gyroUpdateQuat(const AuxMath::Quat &quat, const AuxMath::Vec3 &gyro, float dt);
 };
 
-} // namespace SixAxisIMU
+} // namespace xAxisIMU
 
 #endif // SIX_AXIS_IMU_HPP

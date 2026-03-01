@@ -4,7 +4,7 @@
 // 兼容ESP32：去掉std::，用单精度浮点函数（f后缀）
 #define M_PI_F 3.14159265358979323846f // 单精度PI
 
-namespace SixAxisIMU
+namespace xAxisIMU
 {
 
 // 构造函数：初始化滤波系数和姿态
@@ -103,4 +103,4 @@ IMUAttitude ComplementaryFilter::update(const IMURawData &imu_data, float dt)
     return _attitude;
 }
 
-} // namespace SixAxisIMU
+} // namespace xAxisIMU
