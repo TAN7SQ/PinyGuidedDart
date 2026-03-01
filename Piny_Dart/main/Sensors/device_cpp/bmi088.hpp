@@ -86,15 +86,15 @@ public:
         // 加速度计数据转换为g单位（原有逻辑，保留）
         float acc_x_g() const
         {
-            return acc_x / ACC_SENS_24G;
+            return acc_x / ACC_SENS_24G / GRAVITY;
         }
         float acc_y_g() const
         {
-            return acc_y / ACC_SENS_24G;
+            return acc_y / ACC_SENS_24G / GRAVITY;
         }
         float acc_z_g() const
         {
-            return acc_z / ACC_SENS_24G;
+            return acc_z / ACC_SENS_24G / GRAVITY;
         }
 
         // 陀螺仪数据转换为°/s单位（和加速度计对齐，替换硬编码，清晰可维护）

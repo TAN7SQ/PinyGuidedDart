@@ -1,14 +1,11 @@
 #include "calibrate.hpp"
 #include "fast_math.hpp"
 
-void IMUCalibration::init(const AccCaliParams_s &_accCali, const GyroCaliParams_s &_gyroCali, float _aTransK,
-                          float _gTransK)
+void IMUCalibration::init(const AccCaliParams_s &_accCali, const GyroCaliParams_s &_gyroCali)
 {
     acc_cali_ = _accCali;
     gyro_cali_ = _gyroCali;
     staticSteadyStateCnt_ = 0;
-    aTransK_ = _aTransK;
-    gTransK_ = _gTransK;
 }
 
 void IMUCalibration::correctA(int16_t _ax, int16_t _ay, int16_t _az)

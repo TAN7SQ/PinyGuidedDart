@@ -22,6 +22,5 @@ esp_err_t Control::ControlLoop(const xAxisIMU::IMUAttitude imuAttitude)
     _servo.SetAngle(Servo::LB1, _servoTarget.LB1);
     _servo.SetAngle(Servo::RB0, _servoTarget.RB);
     _servo.SetAngle(Servo::RB1, _servoTarget.RB1);
-    _servo.SetAngle(Servo::FAN, _servoTarget.FAN);
     return ESP_OK;
 }

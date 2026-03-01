@@ -142,6 +142,7 @@ void SensorI2cTask(void *pvParameters)
 }
 
 #include "AuxiliaryMath.hpp"
+#include "calibrate.hpp"
 #include "complementary6asix.hpp"
 #include "kalman6asix.hpp"
 void SensorSpiTask(void *pvParameters)
@@ -214,6 +215,8 @@ void SensorSpiTask(void *pvParameters)
         vTaskDelete(NULL);
         return;
     }
+    IMUCalibration imu_calibration;
+    imu_calibration.init(ACC_CALI, GYRO_CALI);
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(IMU_UPDATE_DT * 1000));
@@ -222,6 +225,49 @@ void SensorSpiTask(void *pvParameters)
             ESP_LOGE(Application::TAG, "BMI088 read data failed: %s", esp_err_to_name(ret));
             continue;
         }
+        // imu_calibration.correctA(data.acc_x, data.acc_y, data.acc_z);
+        // CaliOutput_s out = imu_calibration.getOutput();
+        // sensor::BMI088::Data corrected_data = data;
+        // corrected_data.acc_x = out.ax;
+        // corrected_data.acc_y = out.ay;
+        // corrected_data.acc_z = out.az;
+
+        // printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", //
+        //        corrected_data.acc_x_g(),
+        //        corrected_data.acc_y_g(),
+        //        corrected_data.acc_z_g(),
+        //        data.acc_x_g(),
+        //        data.acc_y_g(),
+        //        data.acc_z_g());
+
+        static float sum_acc_x = 0.0f;
+        static float sum_acc_y = 0.0f;
+        static float sum_acc_z = 0.0f;
+        sum_acc_x += data.acc_x_g();
+        sum_acc_y += data.acc_y_g();
+        sum_acc_z += data.acc_z_g();
+
+        static uint16_t cnt = 0;
+#define COUNT 500
+        if (cnt++ >= COUNT) {
+            cnt = 0;
+            sum_acc_x /= COUNT;
+            sum_acc_y /= COUNT;
+            sum_acc_z /= COUNT;
+
+            printf("-------------------------------------------\n");
+            printf("%.2f,%.2f,%.2f\n",
+                   sum_acc_x,
+                   sum_acc_y,
+                   sum_acc_z //
+            );
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            sum_acc_x = 0.0f;
+            sum_acc_y = 0.0f;
+            sum_acc_z = 0.0f;
+        }
+        continue;
+
         // printf("%d,%d,%d,%d,%d,%d\n", data.acc_x, data.acc_y, data.acc_z, data.gyro_x, data.gyro_y, data.gyro_z);
         // printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
         //        data.acc_x_g(),
@@ -231,10 +277,10 @@ void SensorSpiTask(void *pvParameters)
         //        data.gyro_y_dps(),
         //        data.gyro_z_dps());
 
-        AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
-        AuxMath::Vec3 gyroVec3(data.gyro_x_dps(), data.gyro_y_dps(), data.gyro_z_dps());
-        init_data.gyro = gyroVec3;
-        init_data.acc = accVec3;
+        // AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
+        // AuxMath::Vec3 gyroVec3(data.gyro_x_dps(), data.gyro_y_dps(), data.gyro_z_dps());
+        // init_data.gyro = gyroVec3;
+        // init_data.acc = accVec3;
         xAxisIMU::IMUAttitude imu_attitude = imu_filter.update(init_data, IMU_UPDATE_DT);
         // float roll_def = imu_attitude.euler.x * 57.2958f;
         // float pitch_def = imu_attitude.euler.y * 57.2958f;
@@ -242,14 +288,14 @@ void SensorSpiTask(void *pvParameters)
         // printf("{filter}%.2f,%.2f,%.2f\n", roll_def, pitch_def, yaw_def);
 
         // AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
-        ekf.CalculateAccelOnlyEuler(accVec3);
-        ekf.StaticDetect(gyroVec3, accVec3);
-        ekf.Update(accVec3);
-        ekf.Predict(gyroVec3, 0.01);
-        AuxMath::Quat q;
-        ekf.GetAttitude(q);
-        AuxMath::Vec3 euler;
-        AuxMath::QuatToEuler(q, euler);
+        // ekf.CalculateAccelOnlyEuler(accVec3);
+        // ekf.StaticDetect(gyroVec3, accVec3);
+        // ekf.Update(accVec3);
+        // ekf.Predict(gyroVec3, 0.01);
+        // AuxMath::Quat q;
+        // ekf.GetAttitude(q);
+        // AuxMath::Vec3 euler;
+        // AuxMath::QuatToEuler(q, euler);
         // ESP_LOGI(Application::TAG, //
         //          "%.2f,%.2f,%.2f", //
         //          euler.x,
@@ -336,7 +382,7 @@ void ControlTask(void *pvParameters)
             continue;
         }
         else {
-            printf("%.2f,%.2f,%.2f\n", imuAttitude.euler.x, imuAttitude.euler.y, imuAttitude.euler.z);
+            // printf("%.2f,%.2f,%.2f\n", imuAttitude.euler.x, imuAttitude.euler.y, imuAttitude.euler.z);
         }
     }
 }

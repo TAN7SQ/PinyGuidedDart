@@ -22,12 +22,11 @@ typedef struct
 } GyroCaliParams_s;
 
 // default accelerometer calibration
-static constexpr AccCaliParams_s ACC_CALI = {
-
-    .accelT = {{1.00378931f, -0.00643978501f, 0.00929921027f},
-               {0.0178677756f, 1.00453115f, -0.000616421574f},
-               {-0.0180354994f, -0.0277505852f, 1.00323439f}},
-    .accelOffs = {0.0724740028f, -0.0040230751f, -0.0407223701f}};
+static constexpr AccCaliParams_s ACC_CALI = { //
+    .accelT = {{5.074638280f, 1.553958600f, -2.002290874f},
+               {1.135047869f, 1.855015816f, 0.413938270f},
+               {-2.156260350f, -0.507793166f, 4.524466919f}},
+    .accelOffs = {-3.184993137f, 6.202918253f, -1.729902589f}};
 // default gyroscope calibration
 static constexpr GyroCaliParams_s GYRO_CALI = {
 
@@ -58,11 +57,10 @@ class IMUCalibration
     static constexpr float STEADY_ACCEL_RANGE = 0.28f;
     static constexpr float STEADY_GYRO_RANGE = 0.03f;
     static constexpr float GYRO_BIAS_MAX_RAW = 100.f;
-    static constexpr float G = 9.7883f; // (GuangZhou) Default gravity constant in m/s^2
+    static constexpr float G = 9.80665f; // (GuangZhou) Default gravity constant in m/s^2
 
 public:
-    void init(const AccCaliParams_s &_accCali, const GyroCaliParams_s &_gyroCali, float _aTransK = 1.0f,
-              float _gTransK = 1.0f);
+    void init(const AccCaliParams_s &_accCali, const GyroCaliParams_s &_gyroCali);
     void correctA(int16_t _ax, int16_t _ay, int16_t _az);
     void correctG(int16_t _gx, int16_t _gy, int16_t _gz);
     void correctM(int16_t _mx, int16_t _my, int16_t _mz);
@@ -90,6 +88,6 @@ private:
 
     float temperature_ = 0.0f; // temperature data , unit:degC
 
-    float aTransK_ = 1.0f;
+    static constexpr float aTransK_ = 1.0f;
     float gTransK_ = 1.0f;
 };

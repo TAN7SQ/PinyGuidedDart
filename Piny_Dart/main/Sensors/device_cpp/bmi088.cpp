@@ -327,6 +327,41 @@ BMI088::~BMI088()
 
 esp_err_t BMI088::calibrate(uint8_t times)
 {
+
+    // static float sum_acc_x = 0.0f;
+    // static float sum_acc_y = 0.0f;
+    // static float sum_acc_z = 0.0f;
+    // sum_acc_x += data.acc_x_g();
+    // sum_acc_y += data.acc_y_g();
+    // sum_acc_z += data.acc_z_g();
+
+    // static float sum_gyro_x = 0.0f;
+    // static float sum_gyro_y = 0.0f;
+    // static float sum_gyro_z = 0.0f;
+    // sum_gyro_x += data.gyro_x_dps();
+    // sum_gyro_y += data.gyro_y_dps();
+    // sum_gyro_z += data.gyro_z_dps();
+    // static uint8_t cnt = 0;
+    // if (cnt++ >= 100) {
+    //     cnt = 0;
+    //     sum_acc_x /= 100.0f;
+    //     sum_acc_y /= 100.0f;
+    //     sum_acc_z /= 100.0f;
+    //     sum_gyro_x /= 100.0f;
+    //     sum_gyro_y /= 100.0f;
+    //     sum_gyro_z /= 100.0f;
+    //     printf("-------------------------------------------\n");
+    //     printf(
+    //         "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", sum_acc_x, sum_acc_y, sum_acc_z, sum_gyro_x, sum_gyro_y, sum_gyro_z);
+    //     vTaskDelay(pdMS_TO_TICKS(5000));
+    //     sum_acc_x = 0.0f;
+    //     sum_acc_y = 0.0f;
+    //     sum_acc_z = 0.0f;
+    //     sum_gyro_x = 0.0f;
+    //     sum_gyro_y = 0.0f;
+    //     sum_gyro_z = 0.0f;
+    // }
+    /*********************** */
     int16_t accel_raw[3] = {0};
     int16_t gyro_raw[3] = {0};
 
