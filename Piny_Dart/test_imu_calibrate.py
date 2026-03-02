@@ -3,14 +3,7 @@ from scipy.optimize import least_squares
 
 # ---------------------- 1. 采集的6个姿态原始数据 ----------------------
 # 格式：[[X+,Y+,Z+], [X-,Y-,Z-], [Y+,Y-,Z+], [Y-,Y+,Z+], [Z+,Y+,X+], [Z-,Y+,X+]]
-# raw_data = np.array([
-#     [1.02, 0.86, 9.90],  # 姿态1：Z+朝上
-#     [0.10, -0.09, -9.75], # 姿态2：Z-朝下
-#     [9.85, 0.05, 0.15],   # 姿态3：X+朝上
-#     [-9.78, 0.06, 0.13],  # 姿态4：X-朝下
-#     [0.07, 9.82, 0.11],   # 姿态5：Y+朝上
-#     [0.08, -9.79, 0.10]   # 姿态6：Y-朝下
-# ])
+
 raw_data = np.array([
     [0.0163,-0.0004,0.9954],  # 姿态1：Z+朝上
     [0.0125,-0.0054,-1.0223],  # 姿态2：Z-朝下
@@ -30,7 +23,7 @@ def calibration_error(params, data, g):
     errors = []
     for point in data:
         # 校准计算：T × (原始值 - 零偏)
-        cal_point = T @ (point - off)
+        cal_point = T @ (point - off)1
         # 计算模长与g的误差
         errors.append(np.linalg.norm(cal_point) - g)
     return np.array(errors)

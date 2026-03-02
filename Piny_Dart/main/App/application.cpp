@@ -230,30 +230,33 @@ void SensorSpiTask(void *pvParameters)
         corrected_data.acc_y = out.ay;
         corrected_data.acc_z = out.az;
 
-        AuxMath::Vec3 accVec3(corrected_data.acc_x_g(), corrected_data.acc_y_g(), corrected_data.acc_z_g());
-        AuxMath::Vec3 gyroVec3(data.gyro_x_rads(), data.gyro_y_rads(), data.gyro_z_rads());
-        init_data.gyro = gyroVec3;
-        init_data.acc = accVec3;
-        xAxisIMU::IMUAttitude imu_attitude = imu_filter.update(init_data, IMU_UPDATE_DT);
-        float roll_def = imu_attitude.euler.x * 57.2958f;
-        float pitch_def = imu_attitude.euler.y * 57.2958f;
-        float yaw_def = imu_attitude.euler.z * 57.2958f;
-        printf("%.2f,%.2f,%.2f\n", roll_def, pitch_def, yaw_def);
+        // AuxMath::Vec3 accVec3(corrected_data.acc_x_g(), corrected_data.acc_y_g(), corrected_data.acc_z_g());
+        // AuxMath::Vec3 gyroVec3(data.gyro_x_rads(), data.gyro_y_rads(), data.gyro_z_rads());
+        // init_data.gyro = gyroVec3;
+        // init_data.acc = accVec3;
+        // xAxisIMU::IMUAttitude imu_attitude = imu_filter.update(init_data, IMU_UPDATE_DT);
+        // float roll_def = imu_attitude.euler.x * 57.2958f;
+        // float pitch_def = imu_attitude.euler.y * 57.2958f;
+        // float yaw_def = imu_attitude.euler.z * 57.2958f;
+        // printf("%.2f,%.2f,%.2f\n", roll_def, pitch_def, yaw_def);
 
-        // AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
-        // ekf.CalculateAccelOnlyEuler(accVec3);
-        // ekf.StaticDetect(gyroVec3, accVec3);
-        // ekf.Update(accVec3);
-        // ekf.Predict(gyroVec3, 0.01);
-        // AuxMath::Quat q;
-        // ekf.GetAttitude(q);
-        // AuxMath::Vec3 euler;
-        // AuxMath::QuatToEuler(q, euler);
-        // ESP_LOGI(Application::TAG, //
-        //          "%.2f,%.2f,%.2f", //
-        //          euler.x,
-        //          euler.y,
-        //          euler.z);
+        AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
+        AuxMath::Vec3 gyroVec3(data.gyro_x_rads(), data.gyro_y_rads(), data.gyro_z_rads());
+        ekf.CalculateAccelOnlyEuler(accVec3);
+        ekf.StaticDetect(gyroVec3, accVec3);
+        ekf.Update(accVec3);
+        ekf.Predict(gyroVec3, IMU_UPDATE_DT);
+        AuxMath::Quat q;
+        ekf.GetAttitude(q);
+        AuxMath::Vec3 euler;
+        AuxMath::QuatToEuler(q, euler);
+        xAxisIMU::IMUAttitude imu_attitude;
+        imu_attitude.euler = euler;
+        imu_attitude.quat = q;
+        // printf("%.4f,%.4f,%.4f\n", //
+        //        euler.x,
+        //        euler.y,
+        //        euler.z);
 
         BaseType_t ret = xQueueSend(xSensorQueue, &imu_attitude, pdMS_TO_TICKS(1));
         if (ret != pdPASS) {
@@ -323,7 +326,7 @@ void LogTask(void *pvParameters)
         else {
             char imu_attitude_str[256];
             sprintf(imu_attitude_str,
-                    "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
+                    "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
                     imuAttitude.quat.w,
                     imuAttitude.quat.x,
                     imuAttitude.quat.y,
