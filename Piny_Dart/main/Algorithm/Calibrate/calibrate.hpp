@@ -23,10 +23,10 @@ typedef struct
 
 // default accelerometer calibration
 static constexpr AccCaliParams_s ACC_CALI = { //
-    .accelT = {{5.074638280f, 1.553958600f, -2.002290874f},
-               {1.135047869f, 1.855015816f, 0.413938270f},
-               {-2.156260350f, -0.507793166f, 4.524466919f}},
-    .accelOffs = {-3.184993137f, 6.202918253f, -1.729902589f}};
+    .accelT = {{9.760638813f, -0.140337078f, -0.264131958f},
+               {-0.137518659f, 9.752033160f, -0.484104640f},
+               {-0.260278250f, -0.483899566f, 9.749382274f}},
+    .accelOffs = {0.001398005f, -0.001060410f, -0.005549788f}};
 // default gyroscope calibration
 static constexpr GyroCaliParams_s GYRO_CALI = {
 

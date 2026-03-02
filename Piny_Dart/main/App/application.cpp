@@ -225,12 +225,12 @@ void SensorSpiTask(void *pvParameters)
             ESP_LOGE(Application::TAG, "BMI088 read data failed: %s", esp_err_to_name(ret));
             continue;
         }
-        // imu_calibration.correctA(data.acc_x, data.acc_y, data.acc_z);
-        // CaliOutput_s out = imu_calibration.getOutput();
-        // sensor::BMI088::Data corrected_data = data;
-        // corrected_data.acc_x = out.ax;
-        // corrected_data.acc_y = out.ay;
-        // corrected_data.acc_z = out.az;
+        imu_calibration.correctA(data.acc_x, data.acc_y, data.acc_z);
+        CaliOutput_s out = imu_calibration.getOutput();
+        sensor::BMI088::Data corrected_data = data;
+        corrected_data.acc_x = out.ax;
+        corrected_data.acc_y = out.ay;
+        corrected_data.acc_z = out.az;
 
         // printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", //
         //        corrected_data.acc_x_g(),
@@ -240,42 +240,7 @@ void SensorSpiTask(void *pvParameters)
         //        data.acc_y_g(),
         //        data.acc_z_g());
 
-        static float sum_acc_x = 0.0f;
-        static float sum_acc_y = 0.0f;
-        static float sum_acc_z = 0.0f;
-        sum_acc_x += data.acc_x_g();
-        sum_acc_y += data.acc_y_g();
-        sum_acc_z += data.acc_z_g();
-
-        static uint16_t cnt = 0;
-#define COUNT 500
-        if (cnt++ >= COUNT) {
-            cnt = 0;
-            sum_acc_x /= COUNT;
-            sum_acc_y /= COUNT;
-            sum_acc_z /= COUNT;
-
-            printf("-------------------------------------------\n");
-            printf("%.2f,%.2f,%.2f\n",
-                   sum_acc_x,
-                   sum_acc_y,
-                   sum_acc_z //
-            );
-            vTaskDelay(pdMS_TO_TICKS(1000));
-            sum_acc_x = 0.0f;
-            sum_acc_y = 0.0f;
-            sum_acc_z = 0.0f;
-        }
-        continue;
-
-        // printf("%d,%d,%d,%d,%d,%d\n", data.acc_x, data.acc_y, data.acc_z, data.gyro_x, data.gyro_y, data.gyro_z);
-        // printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
-        //        data.acc_x_g(),
-        //        data.acc_y_g(),
-        //        data.acc_z_g(),
-        //        data.gyro_x_dps(),
-        //        data.gyro_y_dps(),
-        //        data.gyro_z_dps());
+       
 
         // AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
         // AuxMath::Vec3 gyroVec3(data.gyro_x_dps(), data.gyro_y_dps(), data.gyro_z_dps());

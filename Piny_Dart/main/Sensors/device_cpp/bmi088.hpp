@@ -83,21 +83,20 @@ public:
         int16_t gyro_y{0};
         int16_t gyro_z{0};
 
-        // 加速度计数据转换为g单位（原有逻辑，保留）
         float acc_x_g() const
         {
-            return acc_x / ACC_SENS_24G / GRAVITY;
+            return acc_x / ACC_SENS_24G;
         }
         float acc_y_g() const
         {
-            return acc_y / ACC_SENS_24G / GRAVITY;
+            return acc_y / ACC_SENS_24G;
         }
         float acc_z_g() const
         {
-            return acc_z / ACC_SENS_24G / GRAVITY;
+            return acc_z / ACC_SENS_24G;
         }
 
-        // 陀螺仪数据转换为°/s单位（和加速度计对齐，替换硬编码，清晰可维护）
+        // 陀螺仪数据转换为°/s单位
         float gyro_x_dps() const
         {
             return gyro_x * gyro_scale_2000dps;

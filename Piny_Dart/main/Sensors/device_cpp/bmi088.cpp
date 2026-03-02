@@ -46,16 +46,11 @@ esp_err_t BMI088::init_accelerometer()
     esp_err_t ret;
     uint8_t chip_id = 0;
 
-    ret = spi_bus_.write_reg(acc_handle_, ACC_SOFT_RESET, 0xB6);
-    if (ret != ESP_OK)
-        return ret;
-    vTaskDelay(pdMS_TO_TICKS(50));
-
     for (int i = 0; i < 5; i++) {
         ret = spi_bus_.read_reg(acc_handle_, ACC_CHIP_ID, chip_id);
         if (chip_id == 0x1E)
             break;
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 
     if (chip_id != 0x1E) {
@@ -64,6 +59,23 @@ esp_err_t BMI088::init_accelerometer()
     }
 
     ESP_LOGI(TAG, "ACC chip detected");
+    /************************************* */
+    ret = spi_bus_.write_reg(acc_handle_, BMI088_ACC_SOFTRESET, BMI088_ACC_SOFTRESET_VALUE);
+    if (ret != ESP_OK)
+        return ret;
+    vTaskDelay(pdMS_TO_TICKS(50));
+
+    for (int i = 0; i < 5; i++) {
+        ret = spi_bus_.read_reg(acc_handle_, ACC_CHIP_ID, chip_id);
+        if (chip_id == 0x1E)
+            break;
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+
+    if (chip_id != 0x1E) {
+        ESP_LOGE(TAG, "ACC chip ID error: 0x%02X", chip_id);
+        return ESP_FAIL;
+    }
 
     ret = spi_bus_.write_reg(acc_handle_, BMI088_ACC_PWR_CTRL, BMI088_ACC_ENABLE_ACC_ON); // active
     if (ret != ESP_OK)
@@ -83,21 +95,27 @@ esp_err_t BMI088::init_accelerometer()
         vTaskDelay(pdMS_TO_TICKS(5));
     }
 
-    if ((pwr_ctrl & 0x04) == 0) {
-        ESP_LOGE(TAG, "ACC failed to enter measurement mode");
-        return ESP_FAIL;
-    }
+    ret = spi_bus_.write_reg(acc_handle_, //
+                             BMI088_ACC_RANGE,
+                             BMI088_ACC_RANGE_12G);
+    if (ret != ESP_OK)
+        return ret;
+    uint8_t range_check = 0;
+    spi_bus_.read_reg(acc_handle_, BMI088_ACC_RANGE, range_check);
+    printf("ACC_RANGE readback = 0x%02X\n", range_check);
+    vTaskDelay(pdMS_TO_TICKS(2));
 
-    // ret = spi_bus_.write_reg(acc_handle_, ACC_CONF, 0xA7);
-    ret = spi_bus_.write_reg(acc_handle_, ACC_CONF, BMI088_ACC_NORMAL | BMI088_ACC_800_HZ | BMI088_ACC_CONF_MUST_Set);
+    ret = spi_bus_.write_reg(acc_handle_, //
+                             BMI088_ACC_CONF,
+                             BMI088_ACC_NORMAL | BMI088_ACC_800_HZ | BMI088_ACC_CONF_MUST_Set);
     if (ret != ESP_OK)
         return ret;
     vTaskDelay(pdMS_TO_TICKS(2));
 
-    ret = spi_bus_.write_reg(acc_handle_, ACC_RANGE, BMI088_ACC_RANGE_12G);
-    if (ret != ESP_OK)
-        return ret;
-    vTaskDelay(pdMS_TO_TICKS(2));
+    // if ((pwr_ctrl & 0x04) == 0) {
+    //     ESP_LOGE(TAG, "ACC failed to enter measurement mode");
+    //     return ESP_FAIL;
+    // }
 
     // ret = ensure_acc_range_24g();
     // if (ret != ESP_OK) {
@@ -105,7 +123,7 @@ esp_err_t BMI088::init_accelerometer()
     //     return ret;
     // }
 
-    ESP_LOGI(TAG, "BMI088 Accelerometer init success (±24g)");
+    ESP_LOGI(TAG, "BMI088 Accelerometer init success");
     return ESP_OK;
 }
 
@@ -199,7 +217,7 @@ esp_err_t BMI088::read_accelerometer(Data &data)
 {
     esp_err_t ret;
     uint8_t status = 0;
-    uint8_t buf[6] = {0};
+    uint8_t buf[7] = {0};
 
     constexpr int MAX_RETRY = 3;
     bool ready = false;
@@ -225,7 +243,7 @@ esp_err_t BMI088::read_accelerometer(Data &data)
     }
 
     // taskENTER_CRITICAL(&acc_mux);
-    ret = spi_bus_.read_regs(acc_handle_, ACC_DATA_X_LSB, 6, buf);
+    ret = spi_bus_.read_regs(acc_handle_, ACC_DATA_X_LSB, 7, buf);
     // taskEXIT_CRITICAL(&acc_mux);
     if (ret != ESP_OK) {
         data = last_acc_data_;
@@ -234,19 +252,21 @@ esp_err_t BMI088::read_accelerometer(Data &data)
 
     Data new_data = data;
 
-    new_data.acc_x = (int16_t)((buf[1] << 8) | buf[0]);
-    new_data.acc_y = (int16_t)((buf[3] << 8) | buf[2]);
-    new_data.acc_z = (int16_t)((buf[5] << 8) | buf[4]);
+    new_data.acc_x = (int16_t)((buf[2] << 8) | buf[1]);
+    new_data.acc_y = (int16_t)((buf[4] << 8) | buf[3]);
+    new_data.acc_z = (int16_t)((buf[6] << 8) | buf[5]);
 
     // 减去bias
-    new_data.acc_x -= _accel_bias[0];
-    new_data.acc_y -= _accel_bias[1];
-    new_data.acc_z -= _accel_bias[2];
+    // new_data.acc_x -= _accel_bias[0];
+    // new_data.acc_y -= _accel_bias[1];
+    // new_data.acc_z -= _accel_bias[2];
 
     // printf("%d, %d, %d\n", new_data.acc_x, new_data.acc_y, new_data.acc_z);
     // uint8_t range;
     // spi_bus_.read_reg(acc_handle_, ACC_RANGE, range);
     // ESP_LOGI(TAG, "ACC_RANGE = 0x%02X", range);
+
+    // printf("%d,%d,%d,%d,%d,%d,%d\n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
 
     last_acc_data_ = new_data;
     data = new_data;
