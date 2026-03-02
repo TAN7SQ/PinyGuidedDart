@@ -70,7 +70,7 @@ public:
 
     static constexpr float acc_lsb_per_g[] = {10920.0f, 5460.0f, 2730.0f, 1365.0f};
 
-    static constexpr float ACC_SENS_24G = acc_lsb_per_g[static_cast<int>(AccRange::G12)];
+    static constexpr float ACC_SENS_24G = acc_lsb_per_g[static_cast<int>(AccRange::G24)];
 
     static constexpr float gyro_scale_2000dps = GYRO_FS_2000DPS / ADC_MAX_VAL;
 
@@ -110,7 +110,6 @@ public:
             return gyro_z * gyro_scale_2000dps;
         }
 
-        // 【可选扩展】直接转姿态解算需要的rad/s单位（一步到位，无需二次计算）
         float gyro_x_rads() const
         {
             return gyro_x_dps() * DEG2RAD;
@@ -137,7 +136,7 @@ public:
 
     esp_err_t init();
     esp_err_t read_data(Data &data);
-    esp_err_t calibrate(uint8_t times);
+    esp_err_t calibrate(sensor::BMI088::Data data);
 
 private:
     spi::SPIBus &spi_bus_;

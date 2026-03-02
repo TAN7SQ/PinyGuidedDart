@@ -209,12 +209,6 @@ void SensorSpiTask(void *pvParameters)
     imu_filter.initAttitude(init_data.acc);
     vTaskDelay(pdMS_TO_TICKS(1));
 
-    ret = bmi088.calibrate(500);
-    if (ret != ESP_OK) {
-        ESP_LOGE(Application::TAG, "BMI088 calibration failed: %s", esp_err_to_name(ret));
-        vTaskDelete(NULL);
-        return;
-    }
     IMUCalibration imu_calibration;
     imu_calibration.init(ACC_CALI, GYRO_CALI);
 
@@ -225,6 +219,10 @@ void SensorSpiTask(void *pvParameters)
             ESP_LOGE(Application::TAG, "BMI088 read data failed: %s", esp_err_to_name(ret));
             continue;
         }
+
+        // bmi088.calibrate(data);
+        // continue;
+
         imu_calibration.correctA(data.acc_x, data.acc_y, data.acc_z);
         CaliOutput_s out = imu_calibration.getOutput();
         sensor::BMI088::Data corrected_data = data;
@@ -232,7 +230,7 @@ void SensorSpiTask(void *pvParameters)
         corrected_data.acc_y = out.ay;
         corrected_data.acc_z = out.az;
 
-        // printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", //
+        // printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
         //        corrected_data.acc_x_g(),
         //        corrected_data.acc_y_g(),
         //        corrected_data.acc_z_g(),
@@ -240,17 +238,15 @@ void SensorSpiTask(void *pvParameters)
         //        data.acc_y_g(),
         //        data.acc_z_g());
 
-       
-
-        // AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
-        // AuxMath::Vec3 gyroVec3(data.gyro_x_dps(), data.gyro_y_dps(), data.gyro_z_dps());
-        // init_data.gyro = gyroVec3;
-        // init_data.acc = accVec3;
+        AuxMath::Vec3 accVec3(corrected_data.acc_x_g(), corrected_data.acc_y_g(), corrected_data.acc_z_g());
+        AuxMath::Vec3 gyroVec3(data.gyro_x_rads(), data.gyro_y_rads(), data.gyro_z_rads());
+        init_data.gyro = gyroVec3;
+        init_data.acc = accVec3;
         xAxisIMU::IMUAttitude imu_attitude = imu_filter.update(init_data, IMU_UPDATE_DT);
-        // float roll_def = imu_attitude.euler.x * 57.2958f;
-        // float pitch_def = imu_attitude.euler.y * 57.2958f;
-        // float yaw_def = imu_attitude.euler.z * 57.2958f;
-        // printf("{filter}%.2f,%.2f,%.2f\n", roll_def, pitch_def, yaw_def);
+        float roll_def = imu_attitude.euler.x * 57.2958f;
+        float pitch_def = imu_attitude.euler.y * 57.2958f;
+        float yaw_def = imu_attitude.euler.z * 57.2958f;
+        printf("%.2f,%.2f,%.2f\n", roll_def, pitch_def, yaw_def);
 
         // AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
         // ekf.CalculateAccelOnlyEuler(accVec3);

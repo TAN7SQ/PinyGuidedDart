@@ -97,7 +97,7 @@ esp_err_t BMI088::init_accelerometer()
 
     ret = spi_bus_.write_reg(acc_handle_, //
                              BMI088_ACC_RANGE,
-                             BMI088_ACC_RANGE_12G);
+                             BMI088_ACC_RANGE_24G);
     if (ret != ESP_OK)
         return ret;
     uint8_t range_check = 0;
@@ -345,82 +345,33 @@ BMI088::~BMI088()
     ESP_LOGI(TAG, "BMI088 device released");
 }
 
-esp_err_t BMI088::calibrate(uint8_t times)
+esp_err_t BMI088::calibrate(sensor::BMI088::Data data)
 {
 
-    // static float sum_acc_x = 0.0f;
-    // static float sum_acc_y = 0.0f;
-    // static float sum_acc_z = 0.0f;
-    // sum_acc_x += data.acc_x_g();
-    // sum_acc_y += data.acc_y_g();
-    // sum_acc_z += data.acc_z_g();
+    static float sum_acc_x = 0.0f;
+    static float sum_acc_y = 0.0f;
+    static float sum_acc_z = 0.0f;
+    sum_acc_x += data.acc_x_g();
+    sum_acc_y += data.acc_y_g();
+    sum_acc_z += data.acc_z_g();
 
-    // static float sum_gyro_x = 0.0f;
-    // static float sum_gyro_y = 0.0f;
-    // static float sum_gyro_z = 0.0f;
-    // sum_gyro_x += data.gyro_x_dps();
-    // sum_gyro_y += data.gyro_y_dps();
-    // sum_gyro_z += data.gyro_z_dps();
-    // static uint8_t cnt = 0;
-    // if (cnt++ >= 100) {
-    //     cnt = 0;
-    //     sum_acc_x /= 100.0f;
-    //     sum_acc_y /= 100.0f;
-    //     sum_acc_z /= 100.0f;
-    //     sum_gyro_x /= 100.0f;
-    //     sum_gyro_y /= 100.0f;
-    //     sum_gyro_z /= 100.0f;
-    //     printf("-------------------------------------------\n");
-    //     printf(
-    //         "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", sum_acc_x, sum_acc_y, sum_acc_z, sum_gyro_x, sum_gyro_y, sum_gyro_z);
-    //     vTaskDelay(pdMS_TO_TICKS(5000));
-    //     sum_acc_x = 0.0f;
-    //     sum_acc_y = 0.0f;
-    //     sum_acc_z = 0.0f;
-    //     sum_gyro_x = 0.0f;
-    //     sum_gyro_y = 0.0f;
-    //     sum_gyro_z = 0.0f;
-    // }
+#define CALIBRATE_TIME 500
+    static uint16_t cnt = 0;
+    if (cnt++ >= CALIBRATE_TIME) {
+        cnt = 0;
+        sum_acc_x /= CALIBRATE_TIME;
+        sum_acc_y /= CALIBRATE_TIME;
+        sum_acc_z /= CALIBRATE_TIME;
+
+        printf("-------------------------------------------\n");
+        printf("%.4f,%.4f,%.4f\n", sum_acc_x, sum_acc_y, sum_acc_z);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        sum_acc_x = 0.0f;
+        sum_acc_y = 0.0f;
+        sum_acc_z = 0.0f;
+    }
     /*********************** */
-    int16_t accel_raw[3] = {0};
-    int16_t gyro_raw[3] = {0};
 
-    float accel_bias[3] = {0.0f};
-    float gyro_bias[3] = {0.0f};
-
-    Data data;
-    if (times == 0) {
-        return ESP_ERR_INVALID_ARG;
-    }
-    for (int i = 0; i < times; i++) {
-        esp_err_t ret = read_data(data);
-        if (ret != ESP_OK) {
-            return ret;
-        }
-
-        accel_raw[0] += data.acc_x;
-        accel_raw[1] += data.acc_y;
-        accel_raw[2] += data.acc_z;
-
-        gyro_raw[0] += data.gyro_x;
-        gyro_raw[1] += data.gyro_y;
-        gyro_raw[2] += data.gyro_z;
-
-        vTaskDelay(pdMS_TO_TICKS(1));
-    }
-    for (int i = 0; i < 3; i++) {
-        accel_bias[i] = (float)accel_raw[i] / (float)times;
-        gyro_bias[i] = (float)gyro_raw[i] / (float)times;
-    }
-    _accel_bias[0] = accel_bias[0];
-    _accel_bias[1] = accel_bias[1];
-    _accel_bias[2] = accel_bias[2];
-    _gyro_bias[0] = gyro_bias[0];
-    _gyro_bias[1] = gyro_bias[1];
-    _gyro_bias[2] = gyro_bias[2];
-
-    ESP_LOGI(TAG, "accel_bias: %.2f, %.2f, %.2f", _accel_bias[0], _accel_bias[1], _accel_bias[2]);
-    ESP_LOGI(TAG, "gyro_bias: %.2f, %.2f, %.2f", _gyro_bias[0], _gyro_bias[1], _gyro_bias[2]);
     return ESP_OK;
 }
 
