@@ -230,14 +230,6 @@ void SensorSpiTask(void *pvParameters)
         corrected_data.acc_y = out.ay;
         corrected_data.acc_z = out.az;
 
-        // printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
-        //        corrected_data.acc_x_g(),
-        //        corrected_data.acc_y_g(),
-        //        corrected_data.acc_z_g(),
-        //        data.acc_x_g(),
-        //        data.acc_y_g(),
-        //        data.acc_z_g());
-
         AuxMath::Vec3 accVec3(corrected_data.acc_x_g(), corrected_data.acc_y_g(), corrected_data.acc_z_g());
         AuxMath::Vec3 gyroVec3(data.gyro_x_rads(), data.gyro_y_rads(), data.gyro_z_rads());
         init_data.gyro = gyroVec3;
@@ -263,47 +255,10 @@ void SensorSpiTask(void *pvParameters)
         //          euler.y,
         //          euler.z);
 
-        /********************* */
-        // 发送队列
-        // ESP_LOGI(Application::TAG,
-        //          "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f",
-        //          data.acc_x_g(),
-        //          data.acc_y_g(),
-        //          data.acc_z_g(),
-        //          data.gyro_x_dps(),
-        //          data.gyro_y_dps(),
-        //          data.gyro_z_dps());
-
-        // TODO:发送数据到主机
-
-        // if (uxQueueSpacesAvailable(xSensorQueue) == 0) {
-        //     xAxisIMU::IMUAttitude _tmp;
-        //     xQueueReceive(xSensorQueue, &_tmp, 0); // remove old data
-        // }
         BaseType_t ret = xQueueSend(xSensorQueue, &imu_attitude, pdMS_TO_TICKS(1));
         if (ret != pdPASS) {
             continue; // It doesn't happen in theory
         }
-
-        char imu_attitude_str[256];
-        sprintf(imu_attitude_str,
-                "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
-                data.acc_x_g(),
-                data.acc_y_g(),
-                data.acc_z_g(),
-                data.gyro_x_dps(),
-                data.gyro_y_dps(),
-                data.gyro_z_dps());
-        // sprintf(imu_attitude_str,
-        //         "%d,%d,%d,%d,%d,%d\n",
-        //         data.acc_x,
-        //         data.acc_y,
-        //         data.acc_z,
-        //         data.gyro_x,
-        //         data.gyro_y,
-        //         data.gyro_z);
-        // sprintf(imu_attitude_str, "%.2f,%.2f,%.2f\n", roll_def, pitch_def, yaw_def);
-        Application::sClient->sendData((const uint8_t *)imu_attitude_str, strlen(imu_attitude_str));
     }
 }
 
@@ -343,7 +298,6 @@ void ControlTask(void *pvParameters)
             continue;
         }
         else {
-            // printf("%.2f,%.2f,%.2f\n", imuAttitude.euler.x, imuAttitude.euler.y, imuAttitude.euler.z);
         }
     }
 }
@@ -351,6 +305,8 @@ void ControlTask(void *pvParameters)
 // 异步记录日志，同时使用串口发送、http发送
 void LogTask(void *pvParameters)
 {
+    xAxisIMU::IMUAttitude imuAttitude;
+
     // TF_Card *tfCard = (TF_Card *)pvParameters;
     //========================================================
     xSemaphoreGive(xInitCountSem);
@@ -359,6 +315,25 @@ void LogTask(void *pvParameters)
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(10));
         // TODO: 设置队列，并异步地写入TF卡，句柄应该通过参数来传递
+
+        BaseType_t ret = xQueuePeek(xSensorQueue, &imuAttitude, 0);
+        if (ret != pdPASS) {
+            continue;
+        }
+        else {
+            char imu_attitude_str[256];
+            sprintf(imu_attitude_str,
+                    "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n",
+                    imuAttitude.quat.w,
+                    imuAttitude.quat.x,
+                    imuAttitude.quat.y,
+                    imuAttitude.quat.z,
+                    imuAttitude.euler.x,
+                    imuAttitude.euler.y,
+                    imuAttitude.euler.z);
+
+            Application::sClient->sendData((const uint8_t *)imu_attitude_str, strlen(imu_attitude_str));
+        }
     }
 }
 
