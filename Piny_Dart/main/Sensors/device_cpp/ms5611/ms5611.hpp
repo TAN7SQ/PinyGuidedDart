@@ -50,6 +50,7 @@ public:
         double temperature = 0.0;   // 温度(℃)
         double pressure_mbar = 0.0; // 压力(mbar)
         double pressure_pa = 0.0;   // 压力(Pa)
+        double height = 0.0;        // 高度(m)
         uint32_t raw_d1 = 0;        // 原始压力ADC值
         uint32_t raw_d2 = 0;        // 原始温度ADC值
 

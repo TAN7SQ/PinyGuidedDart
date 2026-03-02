@@ -108,23 +108,32 @@ void KeyTask(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
-void SensorI2cTask(void *pvParameters)
+
+#include "kalman1D.hpp"
+#include "kalmanHeightVelocity.hpp"
+void SensorIIcTask(void *pvParameters)
 {
     ESP_LOGI(Application::TAG, "ms5611_task start");
     i2c::BusConfig i2c_bus_config = {
-        .port = I2C_NUM_1,               //
-        .scl_pin = GPIO_NUM_10,          //
-        .sda_pin = GPIO_NUM_11,          //
-        .clk_speed_hz = 1 * 1000 * 1000, //
+        .port = I2C_NUM_1,      //
+        .scl_pin = GPIO_NUM_10, //
+        .sda_pin = GPIO_NUM_11, //
+        .clk_speed_hz = 400000, //
     };
     i2c::I2CBus &i2c_bus = i2c::I2CBus::get_instance(i2c_bus_config);
-    sensor::MS5611 ms5611(i2c_bus, 0x77, sensor::OSR::OSR_512);
+    sensor::MS5611 ms5611(i2c_bus, 0x77, sensor::OSR::OSR_4096);
     esp_err_t ret = ms5611.init();
     if (ret != ESP_OK) {
         ESP_LOGE(Application::TAG, "MS5611 initialization failed: %s", esp_err_to_name(ret));
         vTaskDelete(NULL);
         return;
     }
+
+    // kalmanHeight kfHeight;
+    Kalman1D kfHeight;
+    kfHeight.init(0.0);
+
+    const uint16_t DT = 0.02;
     //========================================================
     xSemaphoreGive(xInitCountSem);
     xEventGroupWaitBits(xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
@@ -136,35 +145,20 @@ void SensorI2cTask(void *pvParameters)
             ESP_LOGE(Application::TAG, "MS5611 read data failed: %s", esp_err_to_name(ret));
             continue;
         }
-        // ESP_LOGI(Application::TAG, "%.2f,%ld", data.pressure_mbar, data.raw_d1);
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(DT * 1000));
+
+        kfHeight.update(data.height);
+        double height = kfHeight.getHeight();
+
+        // ESP_LOGI(Application::TAG, "%.4f", height);
     }
 }
 
 #include "AuxiliaryMath.hpp"
 #include "calibrate.hpp"
-#include "complementary6asix.hpp"
 #include "kalman6asix.hpp"
 void SensorSpiTask(void *pvParameters)
 {
-    /*
-        spi::BusConfig spi_bus_config = {
-            .host_num = SPI2_HOST,
-            .sclk_pin = GPIO_NUM_13, //
-            .mosi_pin = GPIO_NUM_12, //
-            .miso_pin = GPIO_NUM_11, //
-        };
-        spi::SPIBus &spiBus = spi::SPIBus::get_instance(spi_bus_config);
-
-        spi::DeviceConfig bmi088_acc_cfg = {
-            .clock_speed_hz = 1 * 1000 * 1000,
-            .cs_pin = GPIO_NUM_9,
-        };
-        spi::DeviceConfig bmi088_gyro_cfg = {
-            .clock_speed_hz = 1 * 1000 * 1000,
-            .cs_pin = GPIO_NUM_10,
-        };
-        */
     spi::BusConfig spi_bus_config = {
         .host_num = SPI2_HOST,
         .sclk_pin = GPIO_NUM_33, //
@@ -184,7 +178,6 @@ void SensorSpiTask(void *pvParameters)
 
     sensor::BMI088 bmi088(bmi088_acc_cfg, bmi088_gyro_cfg);
     esp_err_t ret = bmi088.init();
-    vTaskDelay(pdMS_TO_TICKS(50));
     if (ret != ESP_OK) {
         ESP_LOGE(Application::TAG, "BMI088 initialization failed: %s", esp_err_to_name(ret));
         vTaskDelete(NULL);
@@ -202,12 +195,7 @@ void SensorSpiTask(void *pvParameters)
     AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
     ekf.Init(accVec3);
     //========================================================
-    xAxisIMU::ComplementaryFilter imu_filter(0.98f);
     const float IMU_UPDATE_DT = 0.01f;
-    xAxisIMU::IMURawData init_data;
-    init_data.acc = accVec3;
-    imu_filter.initAttitude(init_data.acc);
-    vTaskDelay(pdMS_TO_TICKS(1));
 
     IMUCalibration imu_calibration;
     imu_calibration.init(ACC_CALI, GYRO_CALI);
@@ -230,33 +218,19 @@ void SensorSpiTask(void *pvParameters)
         corrected_data.acc_y = out.ay;
         corrected_data.acc_z = out.az;
 
-        // AuxMath::Vec3 accVec3(corrected_data.acc_x_g(), corrected_data.acc_y_g(), corrected_data.acc_z_g());
-        // AuxMath::Vec3 gyroVec3(data.gyro_x_rads(), data.gyro_y_rads(), data.gyro_z_rads());
-        // init_data.gyro = gyroVec3;
-        // init_data.acc = accVec3;
-        // xAxisIMU::IMUAttitude imu_attitude = imu_filter.update(init_data, IMU_UPDATE_DT);
-        // float roll_def = imu_attitude.euler.x * 57.2958f;
-        // float pitch_def = imu_attitude.euler.y * 57.2958f;
-        // float yaw_def = imu_attitude.euler.z * 57.2958f;
-        // printf("%.2f,%.2f,%.2f\n", roll_def, pitch_def, yaw_def);
-
-        AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
+        AuxMath::Quat q;
+        AuxMath::Vec3 accVec3(corrected_data.acc_x_g(), corrected_data.acc_y_g(), corrected_data.acc_z_g());
         AuxMath::Vec3 gyroVec3(data.gyro_x_rads(), data.gyro_y_rads(), data.gyro_z_rads());
         ekf.CalculateAccelOnlyEuler(accVec3);
         ekf.StaticDetect(gyroVec3, accVec3);
         ekf.Update(accVec3);
         ekf.Predict(gyroVec3, IMU_UPDATE_DT);
-        AuxMath::Quat q;
         ekf.GetAttitude(q);
         AuxMath::Vec3 euler;
         AuxMath::QuatToEuler(q, euler);
         xAxisIMU::IMUAttitude imu_attitude;
         imu_attitude.euler = euler;
         imu_attitude.quat = q;
-        // printf("%.4f,%.4f,%.4f\n", //
-        //        euler.x,
-        //        euler.y,
-        //        euler.z);
 
         BaseType_t ret = xQueueSend(xSensorQueue, &imu_attitude, pdMS_TO_TICKS(1));
         if (ret != pdPASS) {
@@ -345,7 +319,6 @@ void AppManagerTask(void *pvParameters)
     for (int i = 0; i < TASK_TOTAL_NUM; i++) {
         if (xSemaphoreTake(xInitCountSem, pdMS_TO_TICKS(5000)) != pdTRUE) {
             ESP_LOGE("APPMAN", "wait task %d init timeout", i + 1);
-            // 超时处理：可终止程序或降级运行
             abort();
         }
         ESP_LOGI("APPMAN", "task %d init done", i + 1);
@@ -355,34 +328,6 @@ void AppManagerTask(void *pvParameters)
     xEventGroupSetBits(xStartSyncGroup, START_SYNC_BIT);
     ESP_LOGI("APPMAN", "app manager task done");
     vTaskDelete(NULL);
-}
-
-Application::Application()
-    : beeper(GPIO_NUM_21), //
-      client(WifiUdpClient::getInstance())
-{
-    Application::sBeeper = &this->beeper;
-    Application::sClient = &this->client;
-    this->beeper.play_boot_music();
-
-    client_config = {
-        .wifi_ssid = "TAN",
-        .wifi_pass = "11111111",
-
-        .udp_server_ip = "192.168.137.1",
-        .udp_server_port = 8080,
-
-        .static_ip = "192.168.137.99", // 除了最后一位，其他必须和服务器网关相同
-        .static_gw = "192.168.137.1",
-        .static_netmask = "255.255.255.0",
-    };
-    /*********************************************************** */
-
-    ESP_LOGI(Application::TAG, "App start");
-}
-
-Application::~Application()
-{
 }
 
 esp_err_t Application::InitSem(void)
@@ -444,26 +389,17 @@ void Application::Initialize()
     // }
     // ESP_LOGI(Application::TAG, "TF card initialized successfully");
 
-    // LogTaskParams_t log_task_params = {
-    //     .tf_card_ptr = &this->tfCard, //
-    //     .log_queue = this->xLogQueue  //
-    // };
-    // if (xTaskCreatePinnedToCore(LogTask,              //
-    //                             "log_task",           //
-    //                             4096,                 //
-    //                             &log_task_params,     //
-    //                             tskIDLE_PRIORITY + 1, //
-    //                             NULL,                 //
-    //                             1) != pdPASS) {       //
-    //     ESP_LOGE(Application::TAG, "Failed to create log task");
-    //     return;
-    // }
+    LogTaskParams_t log_task_params = {
+        .tf_card_ptr = &this->tfCard, //
+        .log_queue = this->xLogQueue  //
+    };
+    _taskCreate(LogTask, "log_task", 4096, &log_task_params, tskIDLE_PRIORITY + 1, NULL, 1);
 
     /************************  ************************/
-    _taskCreate(LedTask, "led_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
-    _taskCreate(KeyTask, "key_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
+    _taskCreate(LedTask, "led_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 1);
+    _taskCreate(KeyTask, "key_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 1);
 
-    // xTaskCreatePinnedToCore(SensorI2cTask, "SensorI2cTask", 4096, NULL, tskIDLE_PRIORITY + 2, NULL, 0);
+    _taskCreate(SensorIIcTask, "SensorIIcTask", 4096, NULL, tskIDLE_PRIORITY + 2, NULL, 0);
     _taskCreate(SensorSpiTask, "SensorSpiTask", 10096, &this->xSpiSensorQueue, tskIDLE_PRIORITY + 2, NULL, 0);
 
     // _taskCreate(HostPCTask, "HostPCTask", 4096, &this->client, tskIDLE_PRIORITY + 3, NULL, 0);
@@ -473,15 +409,15 @@ void Application::Initialize()
     xTaskCreatePinnedToCore(AppManagerTask, "app_manager_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
     xTaskResumeAll();
 
-    /************************  ************************/
-    // auto beeper_cb = []() {
-    //     Application::sBeeper->play_run_music();
-    // };
-    // esp_err_t ret = this->client.init(client_config, beeper_cb);
-    // if (ret != ESP_OK) {
-    //     ESP_LOGE(Application::TAG, "WifiUdpClient init failed: %s", esp_err_to_name(ret));
-    //     return;
-    // }
+    /************************ 无线开关 ************************/
+    auto beeper_cb = []() {
+        Application::sBeeper->play_run_music();
+    };
+    esp_err_t ret = this->client.init(client_config, beeper_cb);
+    if (ret != ESP_OK) {
+        ESP_LOGE(Application::TAG, "WifiUdpClient init failed: %s", esp_err_to_name(ret));
+        return;
+    }
 }
 
 void Application::Run()
@@ -492,4 +428,32 @@ void Application::Run()
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
+}
+
+Application::Application()
+    : beeper(GPIO_NUM_21), //
+      client(WifiUdpClient::getInstance())
+{
+    Application::sBeeper = &this->beeper;
+    Application::sClient = &this->client;
+    this->beeper.play_boot_music();
+
+    client_config = {
+        .wifi_ssid = "TAN",
+        .wifi_pass = "11111111",
+
+        .udp_server_ip = "192.168.137.1",
+        .udp_server_port = 8080,
+
+        .static_ip = "192.168.137.99", // 除了最后一位，其他必须和服务器网关相同
+        .static_gw = "192.168.137.1",
+        .static_netmask = "255.255.255.0",
+    };
+    /*********************************************************** */
+
+    ESP_LOGI(Application::TAG, "App start");
+}
+
+Application::~Application()
+{
 }

@@ -21,8 +21,8 @@ set(REQUIRES
 # Sensor模块源文件
 set(SENSOR_SOURCES
     "Sensors/drivers/spi_bus.cpp"
-    "Sensors/device_cpp/bmi088.cpp"
-    "Sensors/device_cpp/ms5611.cpp"
+    "Sensors/device_cpp/bmi088/bmi088.cpp"
+    "Sensors/device_cpp/ms5611/ms5611.cpp"
     "Sensors/drivers/i2c_bus.cpp"
     "Sensors/drivers/uart.cpp"
 )
@@ -52,8 +52,10 @@ set(APP_SOURCES
 set(ALGORITHM_SOURCES
     "Algorithm/kalman6asix.cpp"
     "Algorithm/AuxiliaryMath.cpp"
-    "Algorithm/complementary6asix.cpp"
+    # "Algorithm/complementary6asix.cpp"
     "Algorithm/Calibrate/calibrate.cpp"
+    "Algorithm/kalmanHeightVelocity.hpp"
+    "Algorithm/kalman1D.hpp"
 )
 
 
@@ -72,7 +74,8 @@ set(SOURCES
 # Sensor模块包含目录
 set(SENSOR_INCLUDE_DIRS
     "Sensors/drivers"
-    "Sensors/device_cpp"
+    "Sensors/device_cpp/bmi088"
+    "Sensors/device_cpp/ms5611"
 )
 
 # Device模块包含目录

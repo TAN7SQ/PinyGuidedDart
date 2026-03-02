@@ -9,13 +9,11 @@ static const char *TAG = "MS5611";
 namespace sensor
 {
 
-// 构造函数
 MS5611::MS5611(i2c::I2CBus &i2c_bus, uint8_t device_address, OSR osr)
     : i2c_bus_(i2c_bus), device_address_(device_address), current_osr_(osr)
 {
 }
 
-// 析构函数
 MS5611::~MS5611()
 {
     if (device_handle_) {
@@ -25,7 +23,6 @@ MS5611::~MS5611()
     ESP_LOGI(TAG, "MS5611 device released");
 }
 
-// 初始化传感器
 esp_err_t MS5611::init()
 {
     if (!i2c_bus_.is_initialized()) {
@@ -34,7 +31,6 @@ esp_err_t MS5611::init()
         // return ESP_ERR_INVALID_STATE;
     }
 
-    // 添加I2C设备
     i2c::DeviceConfig dev_cfg = {
         .device_address = device_address_, .scl_speed_hz = 400000, .addr_len = I2C_ADDR_BIT_LEN_7};
 
@@ -44,21 +40,18 @@ esp_err_t MS5611::init()
         return ret;
     }
 
-    // 软复位
     ret = reset();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "MS5611 reset failed");
         return ret;
     }
 
-    // 读取校准系数
     ret = read_calibration_coeffs();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to read calibration coefficients");
         return ret;
     }
 
-    // 验证校准系数
     if (!is_calibration_valid()) {
         ESP_LOGW(TAG, "Calibration coefficients may be invalid");
     }
@@ -76,7 +69,6 @@ esp_err_t MS5611::init()
     return ESP_OK;
 }
 
-// 软复位
 esp_err_t MS5611::reset()
 {
     if (!device_handle_) {
@@ -87,7 +79,7 @@ esp_err_t MS5611::reset()
     esp_err_t ret = i2c_bus_.write_reg(device_handle_, cmd, 1, 100);
 
     if (ret == ESP_OK) {
-        vTaskDelay(pdMS_TO_TICKS(10)); // 等待复位完成
+        vTaskDelay(pdMS_TO_TICKS(10));
         ESP_LOGD(TAG, "MS5611 reset successful");
     }
     else {
@@ -97,7 +89,6 @@ esp_err_t MS5611::reset()
     return ret;
 }
 
-// 读取校准系数
 esp_err_t MS5611::read_calibration_coeffs()
 {
     if (!device_handle_) {
@@ -117,23 +108,20 @@ esp_err_t MS5611::read_calibration_coeffs()
         }
 
         calib_coeffs_[i] = (buffer[0] << 8) | buffer[1];
-        vTaskDelay(pdMS_TO_TICKS(2)); // 短暂延时
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
 
     return ESP_OK;
 }
 
-// 验证校准系数
 bool MS5611::is_calibration_valid() const
 {
-    // 检查所有系数都不为0
     for (const auto &coeff : calib_coeffs_) {
         if (coeff == 0) {
             return false;
         }
     }
 
-    // 检查系数范围是否合理（根据MS5611数据手册）
     if (calib_coeffs_[0] < 40000 || calib_coeffs_[0] > 48000)
         return false; // C1
     if (calib_coeffs_[1] < 30000 || calib_coeffs_[1] > 38000)
@@ -150,26 +138,22 @@ bool MS5611::is_calibration_valid() const
     return true;
 }
 
-// 读取ADC值
 esp_err_t MS5611::read_reg(uint8_t convert_cmd, uint32_t &adc_data)
 {
     if (!device_handle_) {
         return ESP_ERR_INVALID_STATE;
     }
 
-    // 发送转换命令
     esp_err_t ret = i2c_bus_.write_reg(device_handle_, convert_cmd, 1, 10);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to send convert command 0x%02X: %s", convert_cmd, esp_err_to_name(ret));
         return ret;
     }
 
-    // 等待转换完成（根据OSR）
     uint8_t osr_index = static_cast<uint8_t>(current_osr_);
     vTaskDelay(pdMS_TO_TICKS(10));
     // vTaskDelay(pdMS_TO_TICKS(osr_delays_[osr_index]));
 
-    // 读取ADC数据
     uint8_t read_cmd = MS5611_CMD_ADC_READ;
     uint8_t buffer[3] = {0};
 
@@ -185,7 +169,6 @@ esp_err_t MS5611::read_reg(uint8_t convert_cmd, uint32_t &adc_data)
     return ESP_OK;
 }
 
-// 读取原始D1/D2值
 esp_err_t MS5611::read_raw_data(uint32_t &d1, uint32_t &d2)
 {
     if (!is_initialized_ || !calibration_loaded_) {
@@ -211,52 +194,52 @@ esp_err_t MS5611::read_raw_data(uint32_t &d1, uint32_t &d2)
     return ESP_OK;
 }
 
-// 转换原始数据
 void MS5611::convert_raw_data(uint32_t d1, uint32_t d2, Data &data)
 {
-    // 保存原始值
     data.raw_d1 = d1;
     data.raw_d2 = d2;
 
-    // 提取校准系数
-    int32_t C1 = calib_coeffs_[0]; // Pressure sensitivity
-    int32_t C2 = calib_coeffs_[1]; // Pressure offset
-    int32_t C3 = calib_coeffs_[2]; // Temperature coefficient of pressure sensitivity
-    int32_t C4 = calib_coeffs_[3]; // Temperature coefficient of pressure offset
-    int32_t C5 = calib_coeffs_[4]; // Reference temperature
-    int32_t C6 = calib_coeffs_[5]; // Temperature coefficient of the temperature
+    int64_t C1 = calib_coeffs_[0];
+    int64_t C2 = calib_coeffs_[1];
+    int64_t C3 = calib_coeffs_[2];
+    int64_t C4 = calib_coeffs_[3];
+    int64_t C5 = calib_coeffs_[4];
+    int64_t C6 = calib_coeffs_[5];
 
-    int64_t dT = static_cast<int32_t>(d2) - (static_cast<int32_t>(C5) << 8);
-    int64_t TEMP = 2000 + ((dT * static_cast<int32_t>(C6)) >> 23);
+    int64_t dT = (int64_t)d2 - (C5 << 8);
+    int64_t TEMP = 2000 + ((dT * C6) >> 23);
 
-    int64_t OFF = (static_cast<int32_t>(C2) << 16) + ((static_cast<int32_t>(C4) * dT) >> 7);
-    int64_t SENS = (static_cast<int32_t>(C1) << 15) + ((static_cast<int32_t>(C3) * dT) >> 8);
+    int64_t OFF = (C2 << 16) + ((C4 * dT) >> 7);
+    int64_t SENS = (C1 << 15) + ((C3 * dT) >> 8);
 
-    // 二阶温度补偿
     if (TEMP < 2000) {
         int64_t T2 = (dT * dT) >> 31;
-        int64_t OFF2 = 61 * (TEMP - 2000) * (TEMP - 2000) / 16;
-        int64_t SENS2 = 29 * (TEMP - 2000) * (TEMP - 2000) / 16;
-
-        if (TEMP < -1500) {
-            OFF2 += 17 * (TEMP + 1500) * (TEMP + 1500);
-            SENS2 += 9 * (TEMP + 1500) * (TEMP + 1500);
-        }
+        int64_t OFF2 = 5 * ((TEMP - 2000) * (TEMP - 2000)) >> 1;
+        int64_t SENS2 = 5 * ((TEMP - 2000) * (TEMP - 2000)) >> 2;
 
         TEMP -= T2;
         OFF -= OFF2;
         SENS -= SENS2;
     }
 
-    int32_t P = ((static_cast<int32_t>(d1) * SENS) >> 21) - OFF;
+    int64_t P = ((((int64_t)d1 * SENS) >> 21) - OFF) >> 15;
 
-    // 转换为物理单位
-    data.temperature = static_cast<double>(TEMP) / 100.0;
-    data.pressure_mbar = static_cast<double>(P) / (100.0 * 1024.0);
-    data.pressure_pa = data.pressure_mbar * 100.0;
+    data.temperature = TEMP / 100.0; // ℃
+    data.pressure_pa = (double)P;    // Pa
+    data.pressure_mbar = data.pressure_pa / 100.0;
+
+    // 只计算相对高度
+    static bool initialized = false;
+    static double P0 = 0.0;
+
+    if (!initialized) {
+        P0 = data.pressure_mbar;
+        initialized = true;
+    }
+
+    data.height = -(data.pressure_mbar - P0) * 8.43;
 }
 
-// 读取传感器数据
 esp_err_t MS5611::read_data(Data &data)
 {
     if (!is_initialized_ || !calibration_loaded_) {
@@ -273,7 +256,6 @@ esp_err_t MS5611::read_data(Data &data)
     return ret;
 }
 
-// 设置OSR
 void MS5611::set_osr(OSR osr)
 {
     current_osr_ = osr;
