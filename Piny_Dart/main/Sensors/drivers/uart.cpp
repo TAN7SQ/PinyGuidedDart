@@ -59,50 +59,43 @@ void uart::uart_event_task(void *pvParameters)
         }
 
         bzero(rx_buffer, rx_buffer_size);
-        ESP_LOGI(TAG, "uart[%d] event type: %d", port, event.type);
+        ESP_LOGD(TAG, "uart[%d] event type: %d", port, event.type);
 
         switch (event.type) {
-        // 接收数据事件
         case UART_DATA: {
-            ESP_LOGI(TAG, "[UART DATA]: recv %d bytes", event.size);
+            ESP_LOGD(TAG, "[UART DATA]: recv %d bytes", event.size);
             uart_read_bytes(port, rx_buffer, event.size, portMAX_DELAY);
-            ESP_LOGI(TAG, "[DATA EVT]: %.*s", event.size, rx_buffer);
-            uart_write_bytes(port, (const char *)rx_buffer, event.size);
+            ESP_LOGD(TAG, "[DATA EVT]: %.*s", event.size, rx_buffer);
+            // uart_write_bytes(port, (const char *)rx_buffer, event.size);
             break;
         }
-        // HW FIFO溢出
         case UART_FIFO_OVF: {
-            ESP_LOGE(TAG, "[UART ERR] hw fifo overflow");
             uart_flush_input(port);
             xQueueReset(uartEventQueueHandle);
             break;
         }
-        // 环形缓冲区满
         case UART_BUFFER_FULL: {
-            ESP_LOGE(TAG, "[UART ERR] ring buffer full");
+            // ESP_LOGE(TAG, "[UART ERR] ring buffer full");
             uart_flush_input(port);
             xQueueReset(uartEventQueueHandle);
             break;
         }
-        // RX中断
         case UART_BREAK: {
-            ESP_LOGW(TAG, "[UART WARN] rx break");
+            // ESP_LOGW(TAG, "[UART WARN] rx break");
             break;
         }
-        // 奇偶校验错误
         case UART_PARITY_ERR: {
-            ESP_LOGE(TAG, "[UART ERR] parity check error");
+            // ESP_LOGE(TAG, "[UART ERR] parity check error");
             break;
         }
-        // 帧错误
         case UART_FRAME_ERR: {
-            ESP_LOGE(TAG, "[UART ERR] frame error");
+            // ESP_LOGE(TAG, "[UART ERR] frame error");
             break;
         }
         case UART_PATTERN_DET: {
             uart_get_buffered_data_len(port, &buffered_size);
             int pos = uart_pattern_pop_pos(port);
-            ESP_LOGI(TAG, "[UART PATTERN DET] pos: %d, buffered size: %d", pos, buffered_size);
+            ESP_LOGD(TAG, "[UART PATTERN DET] pos: %d, buffered size: %d", pos, buffered_size);
 
             if (pos == -1) {
                 ESP_LOGE(TAG, "[UART ERR] pattern pos queue full, flush rx buffer");
@@ -112,8 +105,8 @@ void uart::uart_event_task(void *pvParameters)
                 uart_read_bytes(port, rx_buffer, pos, pdMS_TO_TICKS(100));
                 uint8_t pat[4] = {0};
                 uart_read_bytes(port, pat, 3, pdMS_TO_TICKS(100));
-                ESP_LOGI(TAG, "read data: %s", rx_buffer);
-                ESP_LOGI(TAG, "read pattern: %s", pat);
+                // ESP_LOGI(TAG, "read data: %s", rx_buffer);
+                // ESP_LOGI(TAG, "read pattern: %s", pat);
             }
             break;
         }
@@ -123,7 +116,7 @@ void uart::uart_event_task(void *pvParameters)
             break;
         }
         case UART_WAKEUP: {
-            ESP_LOGI(TAG, "[UART INFO] wakeup event");
+            ESP_LOGD(TAG, "[UART INFO] wakeup event");
             break;
         }
         default: {
@@ -166,7 +159,7 @@ esp_err_t uart::initialize()
 
     ESP_LOGI(TAG, "uart[%d] initialize success, baud: %d", port, baud_rate);
     return ESP_OK;
-} 
+}
 
 int uart::write(const uint8_t *data, size_t size)
 {

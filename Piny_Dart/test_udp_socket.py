@@ -11,3 +11,6 @@ print("UDP server listening on port", UDP_PORT)
 while True:
     data, addr = sock.recvfrom(1024)
     print(f"[{addr[0]}:{addr[1]}] {data.decode()}")
+
+
+# echo "hello" | nc -u 192.168.137.1 8080

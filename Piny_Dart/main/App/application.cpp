@@ -243,18 +243,28 @@ void SensorSpiTask(void *pvParameters)
 #include "uart.hpp"
 void HostPCTask(void *pvParameters)
 {
-    uart muart1(GPIO_NUM_46, GPIO_NUM_45, 115200, UART_NUM_1);
-    uart muart2(GPIO_NUM_12, GPIO_NUM_7, 115200, UART_NUM_2);
+    xAxisIMU::IMUAttitude imuAttitude;
+    uart muart1(GPIO_NUM_41, GPIO_NUM_46, 1500000, UART_NUM_1);
+    // uart muart2(GPIO_NUM_12, GPIO_NUM_7, 115200, UART_NUM_2);
+
     muart1.initialize();
-    muart2.initialize();
+    // muart2.initialize();
     muart1.write((const uint8_t *)"hello world1\n", strlen("hello world1\n"));
-    muart2.write((const uint8_t *)"hello world2\n", strlen("hello world2\n"));
+    // muart2.write((const uint8_t *)"hello world2\n", strlen("hello world2\n"));
     //========================================================
     xSemaphoreGive(xInitCountSem);
     xEventGroupWaitBits(xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    ESP_LOGI(Application::TAG, "HostPCTask started");
     //========================================================
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(10));
+        BaseType_t ret = xQueueReceive(xSensorQueue, &imuAttitude, 0);
+        if (ret != pdPASS) {
+            continue;
+        }
+        else {
+            muart1.write((uint8_t *)&imuAttitude, sizeof(imuAttitude));
+        }
     }
 }
 
@@ -270,12 +280,12 @@ void ControlTask(void *pvParameters)
     //========================================================
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1));
-        BaseType_t ret = xQueueReceive(xSensorQueue, &imuAttitude, 0);
-        if (ret != pdPASS) {
-            continue;
-        }
-        else {
-        }
+        // BaseType_t ret = xQueueReceive(xSensorQueue, &imuAttitude, 0);
+        // if (ret != pdPASS) {
+        //     continue;
+        // }
+        // else {
+        // }
     }
 }
 
@@ -359,6 +369,7 @@ void Application::Initialize()
                           BaseType_t core_id) {
         if (xTaskCreatePinnedToCore(task_function, name, stack_depth, pvParameters, priority, NULL, core_id) !=
             pdPASS) {
+            ESP_LOGE(Application::TAG, "Failed to create task %s", name);
         }
         TASK_TOTAL_NUM++;
     };
@@ -402,7 +413,7 @@ void Application::Initialize()
     _taskCreate(SensorIIcTask, "SensorIIcTask", 4096, NULL, tskIDLE_PRIORITY + 2, NULL, 0);
     _taskCreate(SensorSpiTask, "SensorSpiTask", 10096, &this->xSpiSensorQueue, tskIDLE_PRIORITY + 2, NULL, 0);
 
-    // _taskCreate(HostPCTask, "HostPCTask", 4096, &this->client, tskIDLE_PRIORITY + 3, NULL, 0);
+    _taskCreate(HostPCTask, "HostPCTask", 8096, &this->client, tskIDLE_PRIORITY + 3, NULL, 0);
     _taskCreate(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
 
     /************************  ************************/
@@ -410,14 +421,14 @@ void Application::Initialize()
     xTaskResumeAll();
 
     /************************ 无线开关 ************************/
-    auto beeper_cb = []() {
-        Application::sBeeper->play_run_music();
-    };
-    esp_err_t ret = this->client.init(client_config, beeper_cb);
-    if (ret != ESP_OK) {
-        ESP_LOGE(Application::TAG, "WifiUdpClient init failed: %s", esp_err_to_name(ret));
-        return;
-    }
+    // auto beeper_cb = []() {
+    //     Application::sBeeper->play_run_music();
+    // };
+    // esp_err_t ret = this->client.init(client_config, beeper_cb);
+    // if (ret != ESP_OK) {
+    //     ESP_LOGE(Application::TAG, "WifiUdpClient init failed: %s", esp_err_to_name(ret));
+    //     return;
+    // }
 }
 
 void Application::Run()
