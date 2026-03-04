@@ -413,7 +413,7 @@ void Application::Initialize()
     _taskCreate(SensorIIcTask, "SensorIIcTask", 4096, NULL, tskIDLE_PRIORITY + 2, NULL, 0);
     _taskCreate(SensorSpiTask, "SensorSpiTask", 10096, &this->xSpiSensorQueue, tskIDLE_PRIORITY + 2, NULL, 0);
 
-    _taskCreate(HostPCTask, "HostPCTask", 8096, &this->client, tskIDLE_PRIORITY + 3, NULL, 0);
+    // _taskCreate(HostPCTask, "HostPCTask", 8096, &this->client, tskIDLE_PRIORITY + 3, NULL, 0);
     _taskCreate(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
 
     /************************  ************************/
@@ -445,9 +445,9 @@ Application::Application()
     : beeper(GPIO_NUM_21), //
       client(WifiUdpClient::getInstance())
 {
-    Application::sBeeper = &this->beeper;
+    // Application::sBeeper = &this->beeper;
     Application::sClient = &this->client;
-    this->beeper.play_boot_music();
+    // this->beeper.play_boot_music();
 
     client_config = {
         .wifi_ssid = "TAN",
