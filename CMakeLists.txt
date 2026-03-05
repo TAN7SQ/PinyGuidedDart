@@ -5,6 +5,6 @@ set(CMAKE_CXX_STANDARD 20)
 
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(01_bmi088_test)
+project(PinyDart)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
