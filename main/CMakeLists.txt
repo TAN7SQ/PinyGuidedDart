@@ -45,7 +45,7 @@ set(APP_SOURCES
     "App/application.cpp"
     "App/control.cpp"
     "App/hostpc.cpp"
-
+    "App/basicInclude.cpp"
 )
 
 # Algorithm模块源文件

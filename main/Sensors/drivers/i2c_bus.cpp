@@ -212,6 +212,9 @@ std::vector<uint8_t> I2CBus::scan_devices(uint8_t start_addr, uint8_t end_addr)
     }
 
     ESP_LOGI(TAG, "Scan complete, found %zu device(s)", found_devices.size());
+    for (auto addr : found_devices) {
+        ESP_LOGI(TAG, "Found device at address 0x%02X", addr);
+    }
     return found_devices;
 }
 

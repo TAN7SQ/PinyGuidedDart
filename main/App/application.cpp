@@ -23,9 +23,12 @@
 #include "tfcard.hpp"
 #include "ws2812.hpp"
 
-#include "AuxiliaryMath.hpp"
 #include "kalman6asix.hpp"
 
+//************************************************************ */
+#include "basicInclude.hpp"
+#include "control.hpp"
+#include "hostpc.hpp"
 //************************************************************ */
 #define LOG_DATA_MAX_LEN 256
 #define LOG_QUEUE_LEN 10
@@ -35,12 +38,6 @@ uint8_t TASK_TOTAL_NUM = 0;
 #define SENSOR_QUEUE_LEN 10
 
 Beeper *Application::sBeeper = nullptr;
-
-QueueHandle_t xSensorQueue = NULL;
-
-static SemaphoreHandle_t xInitCountSem = NULL;    // count the number of components that have been initialized
-static EventGroupHandle_t xStartSyncGroup = NULL; // event group, used to sync the start of the application
-#define START_SYNC_BIT (1 << 0)
 
 WifiUdpClient *Application::sClient = nullptr;
 //************************************************************ */
@@ -121,6 +118,7 @@ void SensorIIcTask(void *pvParameters)
         .clk_speed_hz = 400000, //
     };
     i2c::I2CBus &i2c_bus = i2c::I2CBus::get_instance(i2c_bus_config);
+    // i2c_bus.scan_devices(0x01, 0xdd);
     sensor::MS5611 ms5611(i2c_bus, 0x77, sensor::OSR::OSR_4096);
     esp_err_t ret = ms5611.init();
     if (ret != ESP_OK) {
@@ -236,56 +234,6 @@ void SensorSpiTask(void *pvParameters)
         if (ret != pdPASS) {
             continue; // It doesn't happen in theory
         }
-    }
-}
-
-// send sensor and log data to host pc
-#include "uart.hpp"
-void HostPCTask(void *pvParameters)
-{
-    xAxisIMU::IMUAttitude imuAttitude;
-    uart muart1(GPIO_NUM_41, GPIO_NUM_46, 1500000, UART_NUM_1);
-    // uart muart2(GPIO_NUM_12, GPIO_NUM_7, 115200, UART_NUM_2);
-
-    muart1.initialize();
-    // muart2.initialize();
-    muart1.write((const uint8_t *)"hello world1\n", strlen("hello world1\n"));
-    // muart2.write((const uint8_t *)"hello world2\n", strlen("hello world2\n"));
-    //========================================================
-    xSemaphoreGive(xInitCountSem);
-    xEventGroupWaitBits(xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-    ESP_LOGI(Application::TAG, "HostPCTask started");
-    //========================================================
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(10));
-        BaseType_t ret = xQueueReceive(xSensorQueue, &imuAttitude, 0);
-        if (ret != pdPASS) {
-            continue;
-        }
-        else {
-            muart1.write((uint8_t *)&imuAttitude, sizeof(imuAttitude));
-        }
-    }
-}
-
-#include "servo.hpp"
-void ControlTask(void *pvParameters)
-{
-    xAxisIMU::IMUAttitude imuAttitude;
-    Servo mServo;
-    mServo.Initialize();
-    //========================================================
-    xSemaphoreGive(xInitCountSem);
-    xEventGroupWaitBits(xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-    //========================================================
-    while (1) {
-        vTaskDelay(pdMS_TO_TICKS(1));
-        // BaseType_t ret = xQueueReceive(xSensorQueue, &imuAttitude, 0);
-        // if (ret != pdPASS) {
-        //     continue;
-        // }
-        // else {
-        // }
     }
 }
 
@@ -413,7 +361,7 @@ void Application::Initialize()
     _taskCreate(SensorIIcTask, "SensorIIcTask", 4096, NULL, tskIDLE_PRIORITY + 2, NULL, 0);
     _taskCreate(SensorSpiTask, "SensorSpiTask", 10096, &this->xSpiSensorQueue, tskIDLE_PRIORITY + 2, NULL, 0);
 
-    // _taskCreate(HostPCTask, "HostPCTask", 8096, &this->client, tskIDLE_PRIORITY + 3, NULL, 0);
+    _taskCreate(HostPC::HostPCTask, "HostPCTask", 8192, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
     _taskCreate(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
 
     /************************  ************************/
