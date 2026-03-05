@@ -12,7 +12,7 @@ void Control::ControlTask(void *pvParameters)
     ESP_LOGI(TAG, "ControlTask Start");
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1));
-        BaseType_t ret = xQueueReceive(rtoshandler.xSensorQueue, &imuAttitude, 0);
+        BaseType_t ret = xQueueReceive(rtoshandler.xImuQueue, &imuAttitude, 0);
         if (ret != pdPASS) {
             continue;
         }

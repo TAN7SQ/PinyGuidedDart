@@ -25,5 +25,7 @@ public:
 private:
     uart muart1;
     uart muart2;
+
     xAxisIMU::IMUAttitude imuAttitude;
+    sensor::MS5611::ConvertData baroData;
 };

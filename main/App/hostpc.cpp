@@ -5,6 +5,7 @@ void HostPC::HostPCTask(void *pvParameters)
 {
     HostPC &hostPC = HostPC::GetInstance();
 
+    ESP_LOGI(HostPC::TAG, "HostPCTask init");
     hostPC.muart1.initialize();
     // muart2.initialize();
     // hostPC.muart1.write((const uint8_t *)"hello world1\n", strlen("hello world1\n"));
@@ -12,13 +13,18 @@ void HostPC::HostPCTask(void *pvParameters)
 
     //========================================================
     xSemaphoreGive(rtoshandler.xInitCountSem);
-    xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    xEventGroupWaitBits(rtoshandler.xStartSyncGroup, //
+                        START_SYNC_BIT,
+                        pdFALSE,
+                        pdFALSE,
+                        portMAX_DELAY);
     //========================================================
     ESP_LOGI(HostPC::TAG, "HostPCTask started");
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1));
-        BaseType_t ret = xQueueReceive(rtoshandler.xSensorQueue, &hostPC.imuAttitude, 0);
+        BaseType_t ret = xQueueReceive(rtoshandler.xImuQueue, &hostPC.imuAttitude, 0);
+        ret |= xQueueReceive(rtoshandler.xBaroQueue, &hostPC.baroData, 0);
         if (ret != pdPASS) {
             continue;
         }

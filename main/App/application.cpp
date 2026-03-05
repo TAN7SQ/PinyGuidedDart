@@ -32,7 +32,9 @@
 //************************************************************ */
 #define LOG_DATA_MAX_LEN 256
 #define LOG_QUEUE_LEN 10
-// QueueHandle_t xLogQueue = NULL;
+
+static std::vector<const char *> gTaskNames;
+
 uint8_t TASK_TOTAL_NUM = 0;
 #define SENSOR_DATA_MAX_LEN 256
 #define SENSOR_QUEUE_LEN 10
@@ -117,9 +119,12 @@ void SensorIIcTask(void *pvParameters)
         .clk_speed_hz = 400000, //
     };
     i2c::I2CBus &i2c_bus = i2c::I2CBus::get_instance(i2c_bus_config);
+
     // i2c_bus.scan_devices(0x01, 0xdd);
     sensor::MS5611 ms5611(i2c_bus, 0x77, sensor::OSR::OSR_4096);
+
     esp_err_t ret = ms5611.init();
+
     if (ret != ESP_OK) {
         ESP_LOGE(Application::TAG, "MS5611 initialization failed: %s", esp_err_to_name(ret));
         vTaskDelete(NULL);
@@ -135,19 +140,24 @@ void SensorIIcTask(void *pvParameters)
     xSemaphoreGive(rtoshandler.xInitCountSem);
     xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     //========================================================
+    ESP_LOGI("IIC", "SensorIIcTask start");
     while (1) {
-        sensor::MS5611::Data data;
+        vTaskDelay(pdMS_TO_TICKS(DT * 1000));
+        sensor::MS5611::ConvertData data;
         ret = ms5611.read_data(data);
         if (ret != ESP_OK) {
             ESP_LOGE(Application::TAG, "MS5611 read data failed: %s", esp_err_to_name(ret));
             continue;
         }
-        vTaskDelay(pdMS_TO_TICKS(DT * 1000));
 
         kfHeight.update(data.height);
-        double height = kfHeight.getHeight();
-
+        // double height = kfHeight.getHeight();
         // ESP_LOGI(Application::TAG, "%.4f", height);
+
+        BaseType_t ret = xQueueSend(rtoshandler.xBaroQueue, &data, 0);
+        if (ret != pdPASS) {
+            ESP_LOGE(Application::TAG, "BaroQueue send failed");
+        }
     }
 }
 
@@ -180,6 +190,7 @@ void SensorSpiTask(void *pvParameters)
         vTaskDelete(NULL);
         return;
     }
+
     //========================================================
     xSemaphoreGive(rtoshandler.xInitCountSem);
     xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
@@ -229,7 +240,7 @@ void SensorSpiTask(void *pvParameters)
         imu_attitude.euler = euler;
         imu_attitude.quat = q;
 
-        BaseType_t ret = xQueueSend(rtoshandler.xSensorQueue, &imu_attitude, pdMS_TO_TICKS(1));
+        BaseType_t ret = xQueueSend(rtoshandler.xImuQueue, &imu_attitude, pdMS_TO_TICKS(1));
         if (ret != pdPASS) {
             continue; // It doesn't happen in theory
         }
@@ -251,7 +262,7 @@ void LogTask(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(10));
         // TODO: 设置队列，并异步地写入TF卡，句柄应该通过参数来传递
 
-        BaseType_t ret = xQueuePeek(rtoshandler.xSensorQueue, &imuAttitude, 0);
+        BaseType_t ret = xQueuePeek(rtoshandler.xImuQueue, &imuAttitude, 0);
         if (ret != pdPASS) {
             continue;
         }
@@ -275,11 +286,12 @@ void LogTask(void *pvParameters)
 void AppManagerTask(void *pvParameters)
 {
     for (int i = 0; i < TASK_TOTAL_NUM; i++) {
-        if (xSemaphoreTake(rtoshandler.xInitCountSem, pdMS_TO_TICKS(5000)) != pdTRUE) {
-            ESP_LOGE("APPMAN", "wait task %d init timeout", i + 1);
+        const char *taskName = gTaskNames[i];
+        if (xSemaphoreTake(rtoshandler.xInitCountSem, pdMS_TO_TICKS(3000)) != pdTRUE) {
+            ESP_LOGE("APPMAN", "wait task %d init timeout: %s", i + 1, taskName);
             abort();
         }
-        ESP_LOGI("APPMAN", "task %d init done", i + 1);
+        ESP_LOGI("APPMAN", "task %d init done: %s", i + 1, taskName);
     }
 
     ESP_LOGI("APPMAN", "all tasks init done, start sync semaphore");
@@ -289,25 +301,10 @@ void AppManagerTask(void *pvParameters)
     vTaskDelete(NULL);
 }
 
-esp_err_t Application::InitSem(void)
-{
-    rtoshandler.xInitCountSem = xSemaphoreCreateCounting(10, 0); // 最多10个任务
-    if (rtoshandler.xInitCountSem == NULL) {
-        ESP_LOGE(Application::TAG, "Failed to create init count semaphore");
-        return ESP_FAIL;
-    }
-    rtoshandler.xStartSyncGroup = xEventGroupCreate();
-    if (rtoshandler.xStartSyncGroup == NULL) {
-        ESP_LOGE(Application::TAG, "Failed to create start sync group");
-        return ESP_FAIL;
-    }
-    return ESP_OK;
-}
-
 void Application::Initialize()
 {
     vTaskSuspendAll();
-    Application::InitSem();
+    ESP_ERROR_CHECK(rtosHandlerInit());
 
     auto _taskCreate = [](TaskFunction_t task_function,
                           const char *name,
@@ -320,14 +317,9 @@ void Application::Initialize()
             pdPASS) {
             ESP_LOGE(Application::TAG, "Failed to create task %s", name);
         }
+        gTaskNames.push_back(name);
         TASK_TOTAL_NUM++;
     };
-
-    /************************  ************************/
-    rtoshandler.xSensorQueue = xQueueCreate(SENSOR_QUEUE_LEN, sizeof(xAxisIMU::IMUAttitude));
-    if (rtoshandler.xSensorQueue == NULL) {
-        ESP_ERROR_CHECK(ESP_FAIL);
-    }
 
     /************************ LOG SYSTEM INITIALIZE ************************/
 
@@ -348,7 +340,7 @@ void Application::Initialize()
     _taskCreate(LedTask, "led_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 1);
     _taskCreate(KeyTask, "key_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 1);
 
-    _taskCreate(SensorIIcTask, "SensorIIcTask", 4096, NULL, tskIDLE_PRIORITY + 2, NULL, 0);
+    _taskCreate(SensorIIcTask, "SensorIIcTask", 8192, NULL, tskIDLE_PRIORITY + 2, NULL, 0);
     _taskCreate(SensorSpiTask, "SensorSpiTask", 10096, &this->xSpiSensorQueue, tskIDLE_PRIORITY + 2, NULL, 0);
 
     _taskCreate(HostPC::HostPCTask, "HostPCTask", 8192, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
@@ -406,3 +398,18 @@ Application::Application()
 Application::~Application()
 {
 }
+
+// esp_err_t Application::InitSem(void)
+// {
+//     rtoshandler.xInitCountSem = xSemaphoreCreateCounting(10, 0); // 最多10个任务
+//     if (rtoshandler.xInitCountSem == NULL) {
+//         ESP_LOGE(Application::TAG, "Failed to create init count semaphore");
+//         return ESP_FAIL;
+//     }
+//     rtoshandler.xStartSyncGroup = xEventGroupCreate();
+//     if (rtoshandler.xStartSyncGroup == NULL) {
+//         ESP_LOGE(Application::TAG, "Failed to create start sync group");
+//         return ESP_FAIL;
+//     }
+//     return ESP_OK;
+// }

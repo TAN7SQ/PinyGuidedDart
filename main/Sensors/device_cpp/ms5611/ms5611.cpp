@@ -194,10 +194,8 @@ esp_err_t MS5611::read_raw_data(uint32_t &d1, uint32_t &d2)
     return ESP_OK;
 }
 
-void MS5611::convert_raw_data(uint32_t d1, uint32_t d2, Data &data)
+void MS5611::convert_raw_data(const RawData &_rawdata, ConvertData &convertData)
 {
-    data.raw_d1 = d1;
-    data.raw_d2 = d2;
 
     int64_t C1 = calib_coeffs_[0];
     int64_t C2 = calib_coeffs_[1];
@@ -206,7 +204,7 @@ void MS5611::convert_raw_data(uint32_t d1, uint32_t d2, Data &data)
     int64_t C5 = calib_coeffs_[4];
     int64_t C6 = calib_coeffs_[5];
 
-    int64_t dT = (int64_t)d2 - (C5 << 8);
+    int64_t dT = (int64_t)_rawdata.d2 - (C5 << 8);
     int64_t TEMP = 2000 + ((dT * C6) >> 23);
 
     int64_t OFF = (C2 << 16) + ((C4 * dT) >> 7);
@@ -222,35 +220,36 @@ void MS5611::convert_raw_data(uint32_t d1, uint32_t d2, Data &data)
         SENS -= SENS2;
     }
 
-    int64_t P = ((((int64_t)d1 * SENS) >> 21) - OFF) >> 15;
+    int64_t P = ((((int64_t)_rawdata.d1 * SENS) >> 21) - OFF) >> 15;
 
-    data.temperature = TEMP / 100.0; // ℃
-    data.pressure_pa = (double)P;    // Pa
-    data.pressure_mbar = data.pressure_pa / 100.0;
+    convertData.temperature = TEMP / 100.0; // ℃
+    convertData.pressure_pa = (double)P;    // Pa
+    convertData.pressure_mbar = convertData.pressure_pa / 100.0;
 
     // 只计算相对高度
     static bool initialized = false;
     static double P0 = 0.0;
 
     if (!initialized) {
-        P0 = data.pressure_mbar;
+        P0 = convertData.pressure_mbar;
         initialized = true;
     }
 
-    data.height = -(data.pressure_mbar - P0) * 8.43;
+    convertData.height = -(convertData.pressure_mbar - P0) * 8.43;
 }
 
-esp_err_t MS5611::read_data(Data &data)
+esp_err_t MS5611::read_data(ConvertData &data)
 {
+    RawData _rawdata;
     if (!is_initialized_ || !calibration_loaded_) {
         ESP_LOGE(TAG, "MS5611 not initialized or calibration not loaded");
         return ESP_ERR_INVALID_STATE;
     }
 
-    esp_err_t ret = read_raw_data(data.raw_d1, data.raw_d2);
+    esp_err_t ret = read_raw_data(_rawdata.d1, _rawdata.d2);
 
     if (ret == ESP_OK) {
-        convert_raw_data(data.raw_d1, data.raw_d2, data);
+        convert_raw_data(_rawdata, data);
     }
 
     return ret;

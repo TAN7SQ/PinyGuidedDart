@@ -45,26 +45,18 @@ class MS5611
 {
 public:
     // 数据结果结构体
-    struct Data
+    struct RawData
+    {
+        uint32_t d1 = 0; // 原始压力ADC值
+        uint32_t d2 = 0; // 原始温度ADC值
+    };
+
+    struct ConvertData
     {
         double temperature = 0.0;   // 温度(℃)
         double pressure_mbar = 0.0; // 压力(mbar)
         double pressure_pa = 0.0;   // 压力(Pa)
         double height = 0.0;        // 高度(m)
-        uint32_t raw_d1 = 0;        // 原始压力ADC值
-        uint32_t raw_d2 = 0;        // 原始温度ADC值
-
-        std::string to_string() const
-        {
-            char buffer[128];
-            snprintf(buffer,
-                     sizeof(buffer),
-                     "Temperature: %.2f°C | Pressure: %.2f mbar (%.0f Pa)",
-                     temperature,
-                     pressure_mbar,
-                     pressure_pa);
-            return std::string(buffer);
-        }
     };
 
     // 构造函数
@@ -74,7 +66,7 @@ public:
     esp_err_t init();
 
     // 读取传感器数据
-    esp_err_t read_data(Data &data);
+    esp_err_t read_data(ConvertData &data);
 
     // 读取原始D1/D2值
     esp_err_t read_raw_data(uint32_t &d1, uint32_t &d2);
@@ -113,7 +105,7 @@ private:
     esp_err_t send_command(uint8_t cmd);
 
     // 转换原始数据
-    void convert_raw_data(uint32_t d1, uint32_t d2, Data &data);
+    void convert_raw_data(const RawData &_rawdata, ConvertData &convertData);
 
     // 成员变量
     i2c::I2CBus &i2c_bus_;
@@ -125,6 +117,8 @@ private:
     std::array<uint16_t, 6> calib_coeffs_ = {0};
     bool is_initialized_ = false;
     bool calibration_loaded_ = false;
+
+    ConvertData convertData;
 
     // OSR对应的转换命令
     std::array<uint8_t, 5> d1_convert_cmds_ = {MS5611_CMD_CONVERT_D1_256,
