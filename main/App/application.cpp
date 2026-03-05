@@ -283,6 +283,7 @@ void AppManagerTask(void *pvParameters)
     }
 
     ESP_LOGI("APPMAN", "all tasks init done, start sync semaphore");
+    printf("---------------------------------------------");
     xEventGroupSetBits(xStartSyncGroup, START_SYNC_BIT);
     ESP_LOGI("APPMAN", "app manager task done");
     vTaskDelete(NULL);
@@ -362,7 +363,7 @@ void Application::Initialize()
     _taskCreate(SensorSpiTask, "SensorSpiTask", 10096, &this->xSpiSensorQueue, tskIDLE_PRIORITY + 2, NULL, 0);
 
     _taskCreate(HostPC::HostPCTask, "HostPCTask", 8192, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
-    _taskCreate(ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
+    _taskCreate(Control::ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
 
     /************************  ************************/
     xTaskCreatePinnedToCore(AppManagerTask, "app_manager_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);

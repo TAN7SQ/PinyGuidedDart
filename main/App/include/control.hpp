@@ -1,7 +1,7 @@
 #pragma once
 
 #include "basicInclude.hpp"
-
+#include "servo.hpp"
 class Control
 {
 public:
@@ -20,4 +20,5 @@ public:
     static void ControlTask(void *pvParameters);
 
 private:
+    Servo mServo;
 };
