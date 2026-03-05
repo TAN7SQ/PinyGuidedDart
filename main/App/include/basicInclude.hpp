@@ -17,8 +17,13 @@
 #include "driver/gpio.h"
 #include "driver/uart.h"
 
-extern QueueHandle_t xSensorQueue;
+typedef struct
+{
+    QueueHandle_t xSensorQueue;
+    SemaphoreHandle_t xInitCountSem;
+    EventGroupHandle_t xStartSyncGroup;
+} rtosHandler;
 
-extern SemaphoreHandle_t xInitCountSem;
-extern EventGroupHandle_t xStartSyncGroup;
+extern rtosHandler rtoshandler;
+
 #define START_SYNC_BIT (1 << 0)

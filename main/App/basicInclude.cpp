@@ -1,5 +1,7 @@
 #include "basicInclude.hpp"
 
-QueueHandle_t xSensorQueue = NULL;
-SemaphoreHandle_t xInitCountSem = NULL;
-EventGroupHandle_t xStartSyncGroup = NULL;
+rtosHandler rtoshandler = {
+    .xSensorQueue = NULL,
+    .xInitCountSem = NULL,
+    .xStartSyncGroup = NULL,
+};

@@ -11,14 +11,14 @@ void HostPC::HostPCTask(void *pvParameters)
     // muart2.write((const uint8_t *)"hello world2\n", strlen("hello world2\n"));
 
     //========================================================
-    xSemaphoreGive(xInitCountSem);
-    xEventGroupWaitBits(xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    xSemaphoreGive(rtoshandler.xInitCountSem);
+    xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     //========================================================
     ESP_LOGI(HostPC::TAG, "HostPCTask started");
 
     while (1) {
-        
-        BaseType_t ret = xQueueReceive(xSensorQueue, &hostPC.imuAttitude, 0);
+        vTaskDelay(pdMS_TO_TICKS(1));
+        BaseType_t ret = xQueueReceive(rtoshandler.xSensorQueue, &hostPC.imuAttitude, 0);
         if (ret != pdPASS) {
             continue;
         }

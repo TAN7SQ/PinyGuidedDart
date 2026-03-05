@@ -200,7 +200,7 @@ static esp_err_t ms5611_read_prom(void)
         }
 
         ms5611_calib[i] = (uint16_t)calib_data[0] << 8 | calib_data[1];
-        ESP_LOGI(TAG, "C%d: 0x%04X (decimal: %d)", i + 1, ms5611_calib[i], ms5611_calib[i]);
+        ESP_LOGD(TAG, "C%d: 0x%04X (decimal: %d)", i + 1, ms5611_calib[i], ms5611_calib[i]);
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 

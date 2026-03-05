@@ -102,7 +102,6 @@ esp_err_t BMI088::init_accelerometer()
         return ret;
     uint8_t range_check = 0;
     spi_bus_.read_reg(acc_handle_, BMI088_ACC_RANGE, range_check);
-    printf("ACC_RANGE readback = 0x%02X\n", range_check);
     vTaskDelay(pdMS_TO_TICKS(2));
 
     ret = spi_bus_.write_reg(acc_handle_, //

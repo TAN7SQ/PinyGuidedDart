@@ -65,8 +65,8 @@ void LedTask(void *pvParameters)
         return;
     }
     //========================================================
-    xSemaphoreGive(xInitCountSem);
-    xEventGroupWaitBits(xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    xSemaphoreGive(rtoshandler.xInitCountSem);
+    xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     //========================================================
     while (1) {
         gpio_set_level(GPIO_NUM_38, 0);
@@ -95,8 +95,8 @@ void KeyTask(void *pvParameters)
         return;
     }
     //========================================================
-    xSemaphoreGive(xInitCountSem);
-    xEventGroupWaitBits(xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    xSemaphoreGive(rtoshandler.xInitCountSem);
+    xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     //========================================================
     while (1) {
         if (gpio_get_level(GPIO_NUM_35) == 1) {
@@ -110,7 +110,6 @@ void KeyTask(void *pvParameters)
 #include "kalmanHeightVelocity.hpp"
 void SensorIIcTask(void *pvParameters)
 {
-    ESP_LOGI(Application::TAG, "ms5611_task start");
     i2c::BusConfig i2c_bus_config = {
         .port = I2C_NUM_1,      //
         .scl_pin = GPIO_NUM_10, //
@@ -133,8 +132,8 @@ void SensorIIcTask(void *pvParameters)
 
     const uint16_t DT = 0.02;
     //========================================================
-    xSemaphoreGive(xInitCountSem);
-    xEventGroupWaitBits(xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    xSemaphoreGive(rtoshandler.xInitCountSem);
+    xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     //========================================================
     while (1) {
         sensor::MS5611::Data data;
@@ -182,8 +181,8 @@ void SensorSpiTask(void *pvParameters)
         return;
     }
     //========================================================
-    xSemaphoreGive(xInitCountSem);
-    xEventGroupWaitBits(xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    xSemaphoreGive(rtoshandler.xInitCountSem);
+    xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     //========================================================
 
     sensor::BMI088::Data data;
@@ -230,7 +229,7 @@ void SensorSpiTask(void *pvParameters)
         imu_attitude.euler = euler;
         imu_attitude.quat = q;
 
-        BaseType_t ret = xQueueSend(xSensorQueue, &imu_attitude, pdMS_TO_TICKS(1));
+        BaseType_t ret = xQueueSend(rtoshandler.xSensorQueue, &imu_attitude, pdMS_TO_TICKS(1));
         if (ret != pdPASS) {
             continue; // It doesn't happen in theory
         }
@@ -244,14 +243,15 @@ void LogTask(void *pvParameters)
 
     // TF_Card *tfCard = (TF_Card *)pvParameters;
     //========================================================
-    xSemaphoreGive(xInitCountSem);
-    xEventGroupWaitBits(xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    xSemaphoreGive(rtoshandler.xInitCountSem);
+    xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     //========================================================
+    ESP_LOGI("LOG", "LogTask started");
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(10));
         // TODO: 设置队列，并异步地写入TF卡，句柄应该通过参数来传递
 
-        BaseType_t ret = xQueuePeek(xSensorQueue, &imuAttitude, 0);
+        BaseType_t ret = xQueuePeek(rtoshandler.xSensorQueue, &imuAttitude, 0);
         if (ret != pdPASS) {
             continue;
         }
@@ -275,7 +275,7 @@ void LogTask(void *pvParameters)
 void AppManagerTask(void *pvParameters)
 {
     for (int i = 0; i < TASK_TOTAL_NUM; i++) {
-        if (xSemaphoreTake(xInitCountSem, pdMS_TO_TICKS(5000)) != pdTRUE) {
+        if (xSemaphoreTake(rtoshandler.xInitCountSem, pdMS_TO_TICKS(5000)) != pdTRUE) {
             ESP_LOGE("APPMAN", "wait task %d init timeout", i + 1);
             abort();
         }
@@ -283,21 +283,21 @@ void AppManagerTask(void *pvParameters)
     }
 
     ESP_LOGI("APPMAN", "all tasks init done, start sync semaphore");
-    printf("---------------------------------------------");
-    xEventGroupSetBits(xStartSyncGroup, START_SYNC_BIT);
-    ESP_LOGI("APPMAN", "app manager task done");
+    printf("---------------------------------------------\n");
+    ESP_LOGW("APPMAN", "Free heap: %.2f KB", esp_get_free_heap_size() / (1024.f));
+    xEventGroupSetBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT);
     vTaskDelete(NULL);
 }
 
 esp_err_t Application::InitSem(void)
 {
-    xInitCountSem = xSemaphoreCreateCounting(10, 0); // 最多10个任务
-    if (xInitCountSem == NULL) {
+    rtoshandler.xInitCountSem = xSemaphoreCreateCounting(10, 0); // 最多10个任务
+    if (rtoshandler.xInitCountSem == NULL) {
         ESP_LOGE(Application::TAG, "Failed to create init count semaphore");
         return ESP_FAIL;
     }
-    xStartSyncGroup = xEventGroupCreate();
-    if (xStartSyncGroup == NULL) {
+    rtoshandler.xStartSyncGroup = xEventGroupCreate();
+    if (rtoshandler.xStartSyncGroup == NULL) {
         ESP_LOGE(Application::TAG, "Failed to create start sync group");
         return ESP_FAIL;
     }
@@ -307,7 +307,7 @@ esp_err_t Application::InitSem(void)
 void Application::Initialize()
 {
     vTaskSuspendAll();
-    InitSem();
+    Application::InitSem();
 
     auto _taskCreate = [](TaskFunction_t task_function,
                           const char *name,
@@ -324,20 +324,9 @@ void Application::Initialize()
     };
 
     /************************  ************************/
-    xSensorQueue = xQueueCreate(SENSOR_QUEUE_LEN, sizeof(xAxisIMU::IMUAttitude));
-    if (xSensorQueue == NULL) {
+    rtoshandler.xSensorQueue = xQueueCreate(SENSOR_QUEUE_LEN, sizeof(xAxisIMU::IMUAttitude));
+    if (rtoshandler.xSensorQueue == NULL) {
         ESP_ERROR_CHECK(ESP_FAIL);
-    }
-    this->xLogQueue = xQueueCreate(LOG_QUEUE_LEN, LOG_DATA_MAX_LEN);
-    this->xSpiSensorQueue = xQueueCreate(SENSOR_QUEUE_LEN, SENSOR_DATA_MAX_LEN);
-    if (this->xSpiSensorQueue == NULL || this->xLogQueue == NULL) {
-        ESP_LOGE(Application::TAG, "Failed to create sensor queue");
-        return;
-    }
-    this->xTFCardMutex = xSemaphoreCreateMutex();
-    if (this->xTFCardMutex == NULL) {
-        ESP_LOGE(Application::TAG, "Failed to create TF card mutex");
-        return;
     }
 
     /************************ LOG SYSTEM INITIALIZE ************************/
