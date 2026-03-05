@@ -25,6 +25,21 @@ struct Vec3
     }
 };
 
+struct _Vec3
+{
+    union {
+        struct
+        {
+            float x, y, z;
+        };
+        struct
+        {
+            float roll, pitch, yaw;
+        };
+        float v[3];
+    };
+};
+
 struct Quat
 {
     float w = 1.0f, x = 0.0f, y = 0.0f, z = 0.0f;
@@ -32,6 +47,11 @@ struct Quat
     Quat(float w_, float x_, float y_, float z_) : w(w_), x(x_), y(y_), z(z_)
     {
     }
+};
+
+struct _Quat
+{
+    float w, x, y, z;
 };
 
 struct Mat3x3
@@ -81,5 +101,6 @@ struct IMUAttitude
     AuxMath::Vec3 euler; // 欧拉角：x(roll)、y(pitch)、z(yaw)，单位rad
     AuxMath::Quat quat;  // 姿态四元数（单位四元数，推荐工程使用）
 };
+
 } // namespace xAxisIMU
 #endif // AUXILIARY_MATH_HPP  // 头文件保护结束

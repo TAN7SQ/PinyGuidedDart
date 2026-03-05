@@ -236,24 +236,7 @@ esp_err_t SensorManager::add_barometer(i2c::I2CBus &i2c_bus, const BarometerConf
 
             esp_err_t read(std::shared_ptr<ISensorData> &data) override
             {
-                auto baro_data = std::make_shared<BarometerData>();
-                MS5611::Data raw_data;
-
-                esp_err_t ret = sensor_->read_data(raw_data);
-                if (ret == ESP_OK) {
-                    baro_data->temperature = raw_data.temperature;
-                    baro_data->pressure_pa = raw_data.pressure_pa;
-                    baro_data->pressure_mbar = raw_data.pressure_mbar;
-                    baro_data->raw_d1 = raw_data.raw_d1;
-                    baro_data->raw_d2 = raw_data.raw_d2;
-                    baro_data->sea_level_pressure = config_.sea_level_pressure;
-                    baro_data->altitude =
-                        SensorManager::calculate_altitude(raw_data.pressure_pa, config_.sea_level_pressure);
-                    baro_data->timestamp_us = esp_timer_get_time();
-                }
-
-                data = baro_data;
-                return ret;
+                return ESP_OK;
             }
 
             esp_err_t reset() override

@@ -172,7 +172,7 @@ void SensorSpiTask(void *pvParameters)
         .mosi_pin = GPIO_NUM_34, //
         .miso_pin = GPIO_NUM_48, //
     };
-    spi::SPIBus &spiBus = spi::SPIBus::get_instance(spi_bus_config);
+    spi::SPIBus::get_instance(spi_bus_config);
 
     spi::DeviceConfig bmi088_acc_cfg = {
         .clock_speed_hz = 1 * 1000 * 1000,

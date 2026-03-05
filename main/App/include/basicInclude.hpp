@@ -37,3 +37,9 @@ typedef struct
 extern rtosHandler rtoshandler;
 
 esp_err_t rtosHandlerInit(void);
+
+class Tools
+{
+public:
+    static uint16_t crc16_ccitt(const uint8_t *data, int len);
+};
