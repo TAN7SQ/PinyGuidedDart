@@ -153,7 +153,6 @@ esp_err_t SPIBus::read_reg(spi_device_handle_t dev_handle, uint8_t reg, uint8_t 
         return ESP_ERR_INVALID_ARG;
     }
 
-    // 申请总线锁
     if (xSemaphoreTake(bus_mutex_, pdMS_TO_TICKS(10)) != pdTRUE) {
         ESP_LOGE(TAG, "Take SPI mutex failed (read)");
         data = 0;
@@ -168,7 +167,6 @@ esp_err_t SPIBus::read_reg(spi_device_handle_t dev_handle, uint8_t reg, uint8_t 
     // std::unique_ptr<void, decltype(mutex_guard)> guard(reinterpret_cast<void *>(1), // 非空！
     //                                                    mutex_guard);
 
-    // 构造读指令（读操作最高位为1）
     uint8_t tx_buf[2] = {static_cast<uint8_t>(reg | 0x80), 0x00};
     uint8_t rx_buf[2] = {0};
     spi_transaction_t t = {
@@ -196,7 +194,6 @@ esp_err_t SPIBus::read_regs(spi_device_handle_t dev_handle, uint8_t reg, uint8_t
         return ESP_ERR_INVALID_ARG;
     }
 
-    // 申请总线锁
     if (xSemaphoreTake(bus_mutex_, pdMS_TO_TICKS(10)) != pdTRUE) {
         ESP_LOGE(TAG, "Take SPI mutex failed (read regs)");
         return ESP_ERR_TIMEOUT;

@@ -3,6 +3,8 @@
 #include "basicInclude.hpp"
 #include "uart.hpp"
 
+#include "servo.hpp"
+
 class HostPC
 {
     typedef enum
@@ -10,8 +12,9 @@ class HostPC
         MSG_IMU = 1,
         MSG_BARO = 2,
         MSG_ATTITUDE = 3,
-        MSG_SYSTEM = 4
-    } msgType_e;
+        MSG_CONTROL = 4,
+        MSG_SYSTEM,
+    } msgType;
 
 public:
     static constexpr const char *TAG = "HostPC";
@@ -41,5 +44,7 @@ private:
     xAxisIMU::IMUAttitude imuAttitude;
     sensor::MS5611::ConvertData baro;
 
-    esp_err_t sendData(msgType_e type, void *payload, uint16_t payloadLength);
+    esp_err_t sendData(msgType type, void *payload, uint16_t payloadLength);
+    esp_err_t receiveData(void *payload, uint16_t *payloadLength);
+    esp_err_t parseData(const msgType type, void *payload, uint16_t payloadLength);
 };

@@ -67,8 +67,9 @@ void LedTask(void *pvParameters)
         return;
     }
     //========================================================
-    xSemaphoreGive(rtoshandler.xInitCountSem);
-    xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    xSemaphoreGive(rtoshandler.InitCountSem);
+    xEventGroupWaitBits(rtoshandler.StartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    ESP_LOGI("Led", "\tLedTask start");
     //========================================================
     while (1) {
         gpio_set_level(GPIO_NUM_38, 0);
@@ -97,8 +98,9 @@ void KeyTask(void *pvParameters)
         return;
     }
     //========================================================
-    xSemaphoreGive(rtoshandler.xInitCountSem);
-    xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    xSemaphoreGive(rtoshandler.InitCountSem);
+    xEventGroupWaitBits(rtoshandler.StartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    ESP_LOGI("Key", "\tKeyTask start");
     //========================================================
     while (1) {
         if (gpio_get_level(GPIO_NUM_35) == 1) {
@@ -137,8 +139,8 @@ void SensorIIcTask(void *pvParameters)
 
     const uint16_t DT = 0.02;
     //========================================================
-    xSemaphoreGive(rtoshandler.xInitCountSem);
-    xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    xSemaphoreGive(rtoshandler.InitCountSem);
+    xEventGroupWaitBits(rtoshandler.StartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     //========================================================
     ESP_LOGI("IIC", "SensorIIcTask start");
     while (1) {
@@ -154,7 +156,7 @@ void SensorIIcTask(void *pvParameters)
         // double height = kfHeight.getHeight();
         // ESP_LOGI(Application::TAG, "%.4f", height);
 
-        BaseType_t ret = xQueueSend(rtoshandler.xBaroQueue, &data, 0);
+        BaseType_t ret = xQueueSend(rtoshandler.BaroQueue, &data, 0);
         if (ret != pdPASS) {
             ESP_LOGE(Application::TAG, "BaroQueue send failed");
         }
@@ -164,6 +166,8 @@ void SensorIIcTask(void *pvParameters)
 #include "AuxiliaryMath.hpp"
 #include "calibrate.hpp"
 #include "kalman6asix.hpp"
+
+#include "adxl375.hpp"
 void SensorSpiTask(void *pvParameters)
 {
     spi::BusConfig spi_bus_config = {
@@ -175,14 +179,13 @@ void SensorSpiTask(void *pvParameters)
     spi::SPIBus::get_instance(spi_bus_config);
 
     spi::DeviceConfig bmi088_acc_cfg = {
-        .clock_speed_hz = 1 * 1000 * 1000,
+        .clock_speed_hz = 2 * 1000 * 1000,
         .cs_pin = GPIO_NUM_47,
     };
     spi::DeviceConfig bmi088_gyro_cfg = {
-        .clock_speed_hz = 1 * 1000 * 1000,
+        .clock_speed_hz = 2 * 1000 * 1000,
         .cs_pin = GPIO_NUM_37,
     };
-
     sensor::BMI088 bmi088(bmi088_acc_cfg, bmi088_gyro_cfg);
     esp_err_t ret = bmi088.init();
     if (ret != ESP_OK) {
@@ -190,10 +193,27 @@ void SensorSpiTask(void *pvParameters)
         vTaskDelete(NULL);
         return;
     }
+    //========================================================
+    // spi::DeviceConfig adxl375_cfg = {
+    //     .clock_speed_hz = 2 * 1000 * 1000,
+    //     .cs_pin = GPIO_NUM_40,
+    //     .mode = 3,
+    // };
+    // sensor::ADXL375 adxl375(adxl375_cfg);
+    // ret = adxl375.init();
+    // if (ret != ESP_OK) {
+    //     ESP_LOGE(Application::TAG, "ADXL375 initialization failed: %s", esp_err_to_name(ret));
+    //     vTaskDelete(NULL);
+    //     return;
+    // }
+    // uint8_t id = 0;
+    // ret = adxl375.read_device_id(id);
+    // ESP_LOGI(Application::TAG, "ADXL375 device id: 0x%02x", id);
 
     //========================================================
-    xSemaphoreGive(rtoshandler.xInitCountSem);
-    xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    xSemaphoreGive(rtoshandler.InitCountSem);
+    xEventGroupWaitBits(rtoshandler.StartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    ESP_LOGI("Spi", "\tSensorSpiTask start");
     //========================================================
 
     sensor::BMI088::Data data;
@@ -240,7 +260,7 @@ void SensorSpiTask(void *pvParameters)
         imu_attitude.euler = euler;
         imu_attitude.quat = q;
 
-        BaseType_t ret = xQueueSend(rtoshandler.xImuQueue, &imu_attitude, pdMS_TO_TICKS(1));
+        BaseType_t ret = xQueueSend(rtoshandler.imuQueue, &imu_attitude, pdMS_TO_TICKS(1));
         if (ret != pdPASS) {
             continue; // It doesn't happen in theory
         }
@@ -254,15 +274,15 @@ void LogTask(void *pvParameters)
 
     // TF_Card *tfCard = (TF_Card *)pvParameters;
     //========================================================
-    xSemaphoreGive(rtoshandler.xInitCountSem);
-    xEventGroupWaitBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    xSemaphoreGive(rtoshandler.InitCountSem);
+    xEventGroupWaitBits(rtoshandler.StartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     //========================================================
-    ESP_LOGI("LOG", "LogTask started");
+    ESP_LOGI("LOG", "\tLogTask started");
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(10));
         // TODO: 设置队列，并异步地写入TF卡，句柄应该通过参数来传递
 
-        BaseType_t ret = xQueuePeek(rtoshandler.xImuQueue, &imuAttitude, 0);
+        BaseType_t ret = xQueuePeek(rtoshandler.imuQueue, &imuAttitude, 0);
         if (ret != pdPASS) {
             continue;
         }
@@ -287,7 +307,7 @@ void AppManagerTask(void *pvParameters)
 {
     for (int i = 0; i < TASK_TOTAL_NUM; i++) {
         const char *taskName = gTaskNames[i];
-        if (xSemaphoreTake(rtoshandler.xInitCountSem, pdMS_TO_TICKS(3000)) != pdTRUE) {
+        if (xSemaphoreTake(rtoshandler.InitCountSem, pdMS_TO_TICKS(3000)) != pdTRUE) {
             ESP_LOGE("APPMAN", "wait task %d init timeout: %s", i + 1, taskName);
             abort();
         }
@@ -297,7 +317,7 @@ void AppManagerTask(void *pvParameters)
     ESP_LOGI("APPMAN", "all tasks init done, start sync semaphore");
     printf("---------------------------------------------\n");
     ESP_LOGW("APPMAN", "Free heap: %.2f KB", esp_get_free_heap_size() / (1024.f));
-    xEventGroupSetBits(rtoshandler.xStartSyncGroup, START_SYNC_BIT);
+    xEventGroupSetBits(rtoshandler.StartSyncGroup, START_SYNC_BIT);
     vTaskDelete(NULL);
 }
 
@@ -375,10 +395,10 @@ Application::Application()
     : beeper(GPIO_NUM_21), //
       client(WifiUdpClient::getInstance())
 {
-    // Application::sBeeper = &this->beeper;
-    Application::sClient = &this->client;
-    // this->beeper.play_boot_music();
+    Application::sBeeper = &this->beeper;
+    this->beeper.play_boot_music();
 
+    Application::sClient = &this->client;
     client_config = {
         .wifi_ssid = "TAN",
         .wifi_pass = "11111111",
@@ -401,13 +421,13 @@ Application::~Application()
 
 // esp_err_t Application::InitSem(void)
 // {
-//     rtoshandler.xInitCountSem = xSemaphoreCreateCounting(10, 0); // 最多10个任务
-//     if (rtoshandler.xInitCountSem == NULL) {
+//     rtoshandler.InitCountSem = xSemaphoreCreateCounting(10, 0); // 最多10个任务
+//     if (rtoshandler.InitCountSem == NULL) {
 //         ESP_LOGE(Application::TAG, "Failed to create init count semaphore");
 //         return ESP_FAIL;
 //     }
-//     rtoshandler.xStartSyncGroup = xEventGroupCreate();
-//     if (rtoshandler.xStartSyncGroup == NULL) {
+//     rtoshandler.StartSyncGroup = xEventGroupCreate();
+//     if (rtoshandler.StartSyncGroup == NULL) {
 //         ESP_LOGE(Application::TAG, "Failed to create start sync group");
 //         return ESP_FAIL;
 //     }

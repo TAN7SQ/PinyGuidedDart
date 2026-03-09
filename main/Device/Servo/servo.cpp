@@ -83,9 +83,9 @@ esp_err_t Servo::SetAngles(uint16_t angles[ALL])
 
 esp_err_t Servo::Initialize()
 {
-    for (int a = 30; a <= 180; a++) {
+    for (int a = 30; a <= 180; a += 5) {
         SetAngle(ALL, a);
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
     SetAngle(ALL, 30);
     ESP_LOGI(TAG, "Servo initialized");

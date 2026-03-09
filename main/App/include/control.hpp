@@ -4,6 +4,7 @@
 #include "servo.hpp"
 class Control
 {
+
 public:
     static constexpr const char *TAG = "Control";
     Control() {};

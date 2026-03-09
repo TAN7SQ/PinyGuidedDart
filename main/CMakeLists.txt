@@ -23,6 +23,7 @@ set(SENSOR_SOURCES
     "Sensors/drivers/spi_bus.cpp"
     "Sensors/device_cpp/bmi088/bmi088.cpp"
     "Sensors/device_cpp/ms5611/ms5611.cpp"
+    "Sensors/device_cpp/adxl375/adxl375.cpp"
     "Sensors/drivers/i2c_bus.cpp"
     "Sensors/drivers/uart.cpp"
 )
@@ -76,6 +77,7 @@ set(SENSOR_INCLUDE_DIRS
     "Sensors/drivers"
     "Sensors/device_cpp/bmi088"
     "Sensors/device_cpp/ms5611"
+    "Sensors/device_cpp/adxl375"
 )
 
 # Device模块包含目录

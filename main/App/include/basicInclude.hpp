@@ -19,6 +19,7 @@
 #include "AuxiliaryMath.hpp"
 
 #include "ms5611.hpp"
+#include "servo.hpp"
 
 /************************************************/
 
@@ -28,18 +29,34 @@
 
 typedef struct
 {
-    QueueHandle_t xImuQueue;
-    QueueHandle_t xBaroQueue;
-    SemaphoreHandle_t xInitCountSem;
-    EventGroupHandle_t xStartSyncGroup;
+    QueueHandle_t imuQueue;
+    QueueHandle_t BaroQueue;
+
+    QueueHandle_t ControlQueue;
+
+    SemaphoreHandle_t InitCountSem;
+    EventGroupHandle_t StartSyncGroup;
 } rtosHandler;
-
 extern rtosHandler rtoshandler;
-
 esp_err_t rtosHandlerInit(void);
+
+/************************************************/
 
 class Tools
 {
 public:
+    static constexpr const char *TAG = "Tools";
+
     static uint16_t crc16_ccitt(const uint8_t *data, int len);
+};
+
+class Comm
+{
+public:
+    static constexpr const char *TAG = "Comm";
+    struct ControlData
+    {
+        uint8_t mode;
+        uint16_t servo_us[Servo::ALL]; // 舵机角度，单位：微秒
+    };
 };
