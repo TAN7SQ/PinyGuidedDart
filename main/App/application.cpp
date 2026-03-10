@@ -215,6 +215,7 @@ void SensorSpiTask(void *pvParameters)
     xEventGroupWaitBits(rtoshandler.StartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     ESP_LOGI("Spi", "\tSensorSpiTask start");
     //========================================================
+    const float IMU_UPDATE_DT = 0.01f;
 
     sensor::BMI088::Data data;
     ret = bmi088.read_data(data);
@@ -223,7 +224,6 @@ void SensorSpiTask(void *pvParameters)
     AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
     ekf.Init(accVec3);
     //========================================================
-    const float IMU_UPDATE_DT = 0.01f;
 
     IMUCalibration imu_calibration;
     imu_calibration.init(ACC_CALI, GYRO_CALI);
@@ -235,9 +235,6 @@ void SensorSpiTask(void *pvParameters)
             ESP_LOGE(Application::TAG, "BMI088 read data failed: %s", esp_err_to_name(ret));
             continue;
         }
-
-        // bmi088.calibrate(data);
-        // continue;
 
         imu_calibration.correctA(data.acc_x, data.acc_y, data.acc_z);
         CaliOutput_s out = imu_calibration.getOutput();
@@ -418,18 +415,3 @@ Application::Application()
 Application::~Application()
 {
 }
-
-// esp_err_t Application::InitSem(void)
-// {
-//     rtoshandler.InitCountSem = xSemaphoreCreateCounting(10, 0); // 最多10个任务
-//     if (rtoshandler.InitCountSem == NULL) {
-//         ESP_LOGE(Application::TAG, "Failed to create init count semaphore");
-//         return ESP_FAIL;
-//     }
-//     rtoshandler.StartSyncGroup = xEventGroupCreate();
-//     if (rtoshandler.StartSyncGroup == NULL) {
-//         ESP_LOGE(Application::TAG, "Failed to create start sync group");
-//         return ESP_FAIL;
-//     }
-//     return ESP_OK;
-// }
