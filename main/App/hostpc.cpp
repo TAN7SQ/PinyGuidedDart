@@ -1,7 +1,7 @@
 #include "hostpc.hpp"
 #include "uart.hpp"
 
-void HostPC::HostPCTask(void *pvParameters)
+void HostPC::run()
 {
     HostPC &hostPC = HostPC::GetInstance();
 
@@ -15,57 +15,60 @@ void HostPC::HostPCTask(void *pvParameters)
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(2));
-        if (xQueueReceive(rtoshandler.imuQueue, &hostPC.imuAttitude, 0) == pdPASS) {
-            // hostPC.sendData(msgType::MSG_IMU, &hostPC.imuAttitude, sizeof(hostPC.imuAttitude));
+        if (xQueueReceive(rtoshandler.imuQueueFiltered, &hostPC.imuAttitude, 0) == pdPASS) {
+            hostPC.sendData(MsgType::IMU, &hostPC.imuAttitude, sizeof(hostPC.imuAttitude));
         }
         if (xQueueReceive(rtoshandler.BaroQueue, &hostPC.baro, 0) == pdPASS) {
-            // hostPC.sendData(msgType::MSG_BARO, &hostPC.baro, sizeof(hostPC.baro));
+            // hostPC.sendData(MsgType::BARO, &hostPC.baro, sizeof(hostPC.baro));
         }
-        // ...
     }
     vTaskDelete(NULL);
 }
 
-esp_err_t HostPC::sendData(msgType type, void *payload, uint16_t payloadLength)
+esp_err_t HostPC::sendData(MsgType type, const void *payload, uint16_t payloadLength)
 {
-    if (payload == nullptr || payloadLength == 0) {
+    if (payload == nullptr || payloadLength == 0)
         return ESP_ERR_INVALID_ARG;
-    }
 
-    // frame = header + type + len(2) + payload + crc(2)
-    const uint8_t HEAD = 0xAA;
+    const uint8_t SOF = 0xAA;
+    const uint8_t VERSION = 1;
 
-    uint16_t frameLength = 1 + 1 + 2 + payloadLength + 2;
-    if (frameLength > 256) {
+    static uint16_t seq = 0;
+    // AA 55 | VER | TYPE | FLAGS | SEQ | LEN | PAYLOAD | CRC16
+    uint16_t frameLength = 1 + 1 + 1 + 1 + 2 + 2 + payloadLength + 2;
+
+    if (frameLength > 256)
         return ESP_ERR_INVALID_SIZE;
-    }
 
     uint8_t buffer[256];
     uint16_t index = 0;
 
-    buffer[index++] = HEAD;
+    buffer[index++] = SOF;
+    buffer[index++] = VERSION;
     buffer[index++] = (uint8_t)type;
+
+    uint8_t flags = 0;
+    buffer[index++] = flags;
+
+    buffer[index++] = seq & 0xFF;
+    buffer[index++] = (seq >> 8) & 0xFF;
+
     buffer[index++] = payloadLength & 0xFF;
     buffer[index++] = (payloadLength >> 8) & 0xFF;
+
     memcpy(&buffer[index], payload, payloadLength);
     index += payloadLength;
+
     uint16_t crc = Tools::crc16_ccitt(buffer, index);
+
     buffer[index++] = crc & 0xFF;
-    buffer[index++] = (crc >> 8) & 0xFF;
+    buffer[index++] = crc >> 8;
 
-    int ret = 0;
-    if (type > msgType::MSG_IMU) {
-        ret = muart1.write(buffer, index);
-    }
-    else {
-        ret = muart2.write(buffer, index);
-    }
+    seq++;
 
-    if (ret < 0) {
-        return ESP_FAIL;
-    }
+    int ret = muart1.write(buffer, index);
 
-    return ESP_OK;
+    return (ret < 0) ? ESP_FAIL : ESP_OK;
 }
 
 esp_err_t HostPC::receiveData(void *payload, uint16_t *payloadLength)
@@ -125,16 +128,16 @@ esp_err_t HostPC::receiveData(void *payload, uint16_t *payloadLength)
         return ESP_ERR_INVALID_CRC;
     }
     *payloadLength = len;
-    return parseData((msgType)type, payload, len);
+    return parseData((MsgType)type, payload, len);
 }
 
-esp_err_t HostPC::parseData(const msgType type, void *payload, uint16_t payloadLength)
+esp_err_t HostPC::parseData(const MsgType type, void *payload, uint16_t payloadLength)
 {
     if (payload == nullptr || payloadLength == 0) {
         return ESP_ERR_INVALID_ARG;
     }
     switch (type) {
-    case MSG_CONTROL: {
+    case MsgType::CONTROL: {
         if (payloadLength != sizeof(Comm::ControlData)) {
             ESP_LOGW(TAG, "ControlData size mismatch");
             return ESP_ERR_INVALID_SIZE;
@@ -144,12 +147,12 @@ esp_err_t HostPC::parseData(const msgType type, void *payload, uint16_t payloadL
         xQueueSend(rtoshandler.ControlQueue, &ctrl, 0);
         break;
     }
-    case MSG_SYSTEM: {
+    case MsgType::SYSTEM: {
         ESP_LOGI(TAG, "System message received");
         break;
     }
     default:
-        ESP_LOGW(TAG, "Unknown msg type: %d", type);
+        ESP_LOGW(TAG, "Unknown msg type: %d", (int)type);
         return ESP_ERR_NOT_SUPPORTED;
     }
 

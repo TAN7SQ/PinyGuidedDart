@@ -93,7 +93,7 @@ struct IMURawData
 {
     AuxMath::Vec3 gyro; // 陀螺仪数据：x(roll)、y(pitch)、z(yaw)，单位rad/s
     AuxMath::Vec3 acc;  // 加速度计数据：x、y、z，单位m/s²
-}; // namespace struct IMURawData
+};
 
 // 姿态解算结果结构体（欧拉角+四元数，姿态角单位：弧度）
 struct IMUAttitude

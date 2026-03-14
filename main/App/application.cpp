@@ -30,14 +30,6 @@
 #include "control.hpp"
 #include "hostpc.hpp"
 //************************************************************ */
-#define LOG_DATA_MAX_LEN 256
-#define LOG_QUEUE_LEN 10
-
-static std::vector<const char *> gTaskNames;
-
-uint8_t TASK_TOTAL_NUM = 0;
-#define SENSOR_DATA_MAX_LEN 256
-#define SENSOR_QUEUE_LEN 10
 
 Beeper *Application::sBeeper = nullptr;
 
@@ -257,7 +249,11 @@ void SensorSpiTask(void *pvParameters)
         imu_attitude.euler = euler;
         imu_attitude.quat = q;
 
-        BaseType_t ret = xQueueSend(rtoshandler.imuQueue, &imu_attitude, pdMS_TO_TICKS(1));
+        xAxisIMU::IMURawData imu_raw_data;
+        imu_raw_data.acc = accVec3;
+        imu_raw_data.gyro = gyroVec3;
+        BaseType_t ret = xQueueSend(rtoshandler.imuQueueRaw, &imu_raw_data, pdMS_TO_TICKS(1));
+        ret |= xQueueSend(rtoshandler.imuQueueFiltered, &imu_attitude, pdMS_TO_TICKS(1));
         if (ret != pdPASS) {
             continue; // It doesn't happen in theory
         }
@@ -279,7 +275,7 @@ void LogTask(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(10));
         // TODO: 设置队列，并异步地写入TF卡，句柄应该通过参数来传递
 
-        BaseType_t ret = xQueuePeek(rtoshandler.imuQueue, &imuAttitude, 0);
+        BaseType_t ret = xQueuePeek(rtoshandler.imuQueueFiltered, &imuAttitude, 0);
         if (ret != pdPASS) {
             continue;
         }
@@ -300,43 +296,14 @@ void LogTask(void *pvParameters)
     }
 }
 
-void AppManagerTask(void *pvParameters)
-{
-    for (int i = 0; i < TASK_TOTAL_NUM; i++) {
-        const char *taskName = gTaskNames[i];
-        if (xSemaphoreTake(rtoshandler.InitCountSem, pdMS_TO_TICKS(3000)) != pdTRUE) {
-            ESP_LOGE("APPMAN", "wait task %d init timeout: %s", i + 1, taskName);
-            abort();
-        }
-        ESP_LOGI("APPMAN", "task %d init done: %s", i + 1, taskName);
-    }
-
-    ESP_LOGI("APPMAN", "all tasks init done, start sync semaphore");
-    printf("---------------------------------------------\n");
-    ESP_LOGW("APPMAN", "Free heap: %.2f KB", esp_get_free_heap_size() / (1024.f));
-    xEventGroupSetBits(rtoshandler.StartSyncGroup, START_SYNC_BIT);
-    vTaskDelete(NULL);
-}
-
 void Application::Initialize()
 {
-    vTaskSuspendAll();
     ESP_ERROR_CHECK(rtosHandlerInit());
 
-    auto _taskCreate = [](TaskFunction_t task_function,
-                          const char *name,
-                          uint32_t stack_depth,
-                          void *pvParameters,
-                          uint32_t priority,
-                          TaskHandle_t *pxCreatedTask,
-                          BaseType_t core_id) {
-        if (xTaskCreatePinnedToCore(task_function, name, stack_depth, pvParameters, priority, NULL, core_id) !=
-            pdPASS) {
-            ESP_LOGE(Application::TAG, "Failed to create task %s", name);
-        }
-        gTaskNames.push_back(name);
-        TASK_TOTAL_NUM++;
-    };
+    Control::GetInstance();
+    HostPC::GetInstance();
+
+    vTaskSuspendAll();
 
     /************************ LOG SYSTEM INITIALIZE ************************/
 
@@ -347,24 +314,24 @@ void Application::Initialize()
     // }
     // ESP_LOGI(Application::TAG, "TF card initialized successfully");
 
-    LogTaskParams_t log_task_params = {
-        .tf_card_ptr = &this->tfCard, //
-        .log_queue = this->xLogQueue  //
-    };
-    _taskCreate(LogTask, "log_task", 4096, &log_task_params, tskIDLE_PRIORITY + 1, NULL, 1);
+    // LogTaskParams_t log_task_params = {
+    //     .tf_card_ptr = &this->tfCard, //
+    //     .log_queue = this->xLogQueue  //
+    // };
+    // Tools::taskCreate(LogTask, "log_task", 4096, &log_task_params, tskIDLE_PRIORITY + 1, NULL, 1);
 
     /************************  ************************/
-    _taskCreate(LedTask, "led_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 1);
-    _taskCreate(KeyTask, "key_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 1);
+    Tools::taskCreate(LedTask, "led_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 1);
+    Tools::taskCreate(KeyTask, "key_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 1);
 
-    _taskCreate(SensorIIcTask, "SensorIIcTask", 8192, NULL, tskIDLE_PRIORITY + 2, NULL, 0);
-    _taskCreate(SensorSpiTask, "SensorSpiTask", 10096, &this->xSpiSensorQueue, tskIDLE_PRIORITY + 2, NULL, 0);
+    Tools::taskCreate(SensorIIcTask, "SensorIIcTask", 8192, NULL, tskIDLE_PRIORITY + 2, NULL, 0);
+    Tools::taskCreate(SensorSpiTask, "SensorSpiTask", 10096, &this->xSpiSensorQueue, tskIDLE_PRIORITY + 2, NULL, 0);
 
-    _taskCreate(HostPC::HostPCTask, "HostPCTask", 8192, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
-    _taskCreate(Control::ControlTask, "control_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
+    Control::GetInstance().start();
+    HostPC::GetInstance().start();
 
     /************************  ************************/
-    xTaskCreatePinnedToCore(AppManagerTask, "app_manager_task", 4096, NULL, tskIDLE_PRIORITY + 1, NULL, 0);
+    xTaskCreatePinnedToCore(Tools::AppManagerTask, "app_manager_task", 4096, NULL, tskIDLE_PRIORITY + 3, NULL, 0);
     xTaskResumeAll();
 
     /************************ 无线开关 ************************/

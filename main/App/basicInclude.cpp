@@ -1,24 +1,31 @@
 #include "basicInclude.hpp"
 
 rtosHandler rtoshandler = {
-    .imuQueue = NULL,
+    .imuQueueRaw = NULL,
+    .imuQueueFiltered = NULL,
     .BaroQueue = NULL,
+
     .ControlQueue = NULL,
 
     .InitCountSem = NULL,
     .StartSyncGroup = NULL,
 };
 
+std::vector<const char *> Tools::gTaskNames;
+uint8_t Tools::TASK_TOTAL_NUM = 0;
+
 esp_err_t rtosHandlerInit(void)
 {
-    rtoshandler.imuQueue = xQueueCreate(10, sizeof(xAxisIMU::IMUAttitude));
-    rtoshandler.BaroQueue = xQueueCreate(10, sizeof(sensor::MS5611::ConvertData));
-    rtoshandler.ControlQueue = xQueueCreate(10, sizeof(Comm::ControlData));
+    rtoshandler.imuQueueRaw = xQueueCreate(8, sizeof(xAxisIMU::IMURawData));
+    rtoshandler.imuQueueFiltered = xQueueCreate(8, sizeof(xAxisIMU::IMUAttitude));
+
+    rtoshandler.BaroQueue = xQueueCreate(8, sizeof(sensor::MS5611::ConvertData));
+    rtoshandler.ControlQueue = xQueueCreate(8, sizeof(Comm::ControlData));
 
     rtoshandler.InitCountSem = xSemaphoreCreateCounting(10, 0);
     rtoshandler.StartSyncGroup = xEventGroupCreate();
-    if (rtoshandler.imuQueue == NULL || rtoshandler.BaroQueue == NULL || rtoshandler.InitCountSem == NULL ||
-        rtoshandler.StartSyncGroup == NULL) {
+    if (rtoshandler.imuQueueRaw == NULL || rtoshandler.imuQueueFiltered == NULL || rtoshandler.BaroQueue == NULL ||
+        rtoshandler.InitCountSem == NULL || rtoshandler.StartSyncGroup == NULL) {
         ESP_LOGE("rtosHandler", "Failed to create RTOS handler");
         return ESP_ERR_NO_MEM;
     }
