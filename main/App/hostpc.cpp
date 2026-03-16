@@ -19,7 +19,7 @@ void HostPC::run()
             hostPC.sendData(MsgType::IMU, &hostPC.imuAttitude, sizeof(hostPC.imuAttitude));
         }
         if (xQueueReceive(rtoshandler.BaroQueue, &hostPC.baro, 0) == pdPASS) {
-            // hostPC.sendData(MsgType::BARO, &hostPC.baro, sizeof(hostPC.baro));
+            hostPC.sendData(MsgType::BARO, &hostPC.baro, sizeof(hostPC.baro));
         }
     }
     vTaskDelete(NULL);
@@ -31,27 +31,18 @@ esp_err_t HostPC::sendData(MsgType type, const void *payload, uint16_t payloadLe
         return ESP_ERR_INVALID_ARG;
 
     const uint8_t SOF = 0xAA;
-    const uint8_t VERSION = 1;
 
-    static uint16_t seq = 0;
-    // AA 55 | VER | TYPE | FLAGS | SEQ | LEN | PAYLOAD | CRC16
-    uint16_t frameLength = 1 + 1 + 1 + 1 + 2 + 2 + payloadLength + 2;
+    // SOF | TYPE | LEN | PAYLOAD | CRC16
+    uint16_t frameLength = 1 + 1 + 2 + payloadLength + 2;
 
     if (frameLength > 256)
         return ESP_ERR_INVALID_SIZE;
 
-    uint8_t buffer[256];
+    uint8_t buffer[frameLength];
     uint16_t index = 0;
 
     buffer[index++] = SOF;
-    buffer[index++] = VERSION;
     buffer[index++] = (uint8_t)type;
-
-    uint8_t flags = 0;
-    buffer[index++] = flags;
-
-    buffer[index++] = seq & 0xFF;
-    buffer[index++] = (seq >> 8) & 0xFF;
 
     buffer[index++] = payloadLength & 0xFF;
     buffer[index++] = (payloadLength >> 8) & 0xFF;
@@ -63,8 +54,6 @@ esp_err_t HostPC::sendData(MsgType type, const void *payload, uint16_t payloadLe
 
     buffer[index++] = crc & 0xFF;
     buffer[index++] = crc >> 8;
-
-    seq++;
 
     int ret = muart1.write(buffer, index);
 
