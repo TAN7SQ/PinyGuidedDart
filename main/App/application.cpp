@@ -216,6 +216,7 @@ void SensorSpiTask(void *pvParameters)
     AuxMath::Vec3 accVec3(data.acc_x_g(), data.acc_y_g(), data.acc_z_g());
     ekf.Init(accVec3);
     //========================================================
+    // TODO: 获取镖体速度矢量
 
     IMUCalibration imu_calibration;
     imu_calibration.init(ACC_CALI, GYRO_CALI);
