@@ -16,7 +16,7 @@ void HostPC::run()
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(2));
         if (xQueueReceive(rtoshandler.imuQueueFiltered, &hostPC.imuAttitude, 0) == pdPASS) {
-            hostPC.sendData(MsgType::IMU, &hostPC.imuAttitude, sizeof(hostPC.imuAttitude));
+            hostPC.sendData(MsgType::ATTITUDE, &hostPC.imuAttitude, sizeof(hostPC.imuAttitude));
         }
         if (xQueueReceive(rtoshandler.BaroQueue, &hostPC.baro, 0) == pdPASS) {
             hostPC.sendData(MsgType::BARO, &hostPC.baro, sizeof(hostPC.baro));
