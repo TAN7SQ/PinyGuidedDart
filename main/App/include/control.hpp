@@ -4,6 +4,12 @@
 #include "servo.hpp"
 
 /********************************************************** */
+enum Mode_e
+{
+    Steady,
+    Track,
+};
+
 class Control
 {
 public:
@@ -33,6 +39,21 @@ private:
         self->run();
     }
 
+private:
+    struct ControlParams
+    {
+        float Kp_angle = 3.0f;
+        float Kp_rate = 0.8f;
+        float Kd_rate = 0.02f;
+
+        float K_damp = 0.3f;
+
+        float max_output = 0.5f;
+
+        float last_yaw_err = 0;
+        float last_pitch_err = 0;
+    };
+
     /*********************************************** */
 
     void run(void);
@@ -44,4 +65,10 @@ private:
     /*********************************** */
     xAxisIMU::IMUAttitude imuAttitude;
     xAxisIMU::IMURawData imuRawData;
+
+    Comm::BodyTarget_t bodyTarget;
+    Mode_e mode = Steady;
+
+    ControlParams params;
+    /*********************************** */
 };

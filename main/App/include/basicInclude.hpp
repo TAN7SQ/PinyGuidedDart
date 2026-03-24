@@ -98,9 +98,18 @@ class Comm
 {
 public:
     static constexpr const char *TAG = "Comm";
-    struct ControlData
+    struct BodyTarget_t
     {
-        uint8_t mode;
-        uint16_t servo_us[Servo::ALL]; // 舵机角度，单位：微秒
+        bool valid = false;
+        float x; // 机体坐标系X（右）
+        float y; // 机体坐标系Y（上）
+        float z; // 机体坐标系Z（前）
+
+        float yaw_error;   // 偏航误差（弧度）：正=目标在右侧，负=左侧
+        float pitch_error; // 俯仰误差（弧度）：正=目标在上方，负=下方
+        float roll_error;  // 横滚误差
+
+        float yaw_error_rate;   // 偏航误差率（弧度/秒）
+        float pitch_error_rate; // 俯仰误差率（弧度/秒）
     };
 };
