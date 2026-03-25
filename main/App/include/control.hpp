@@ -43,12 +43,14 @@ private:
     struct ControlParams
     {
         float Kp_angle = 3.0f;
-        float Kp_rate = 0.8f;
-        float Kd_rate = 0.02f;
+        float Kp_rate = 0.5f;  // 先调小一点，防止震荡
+        float Kd_rate = 0.05f; // 稍微加大 D 项
 
-        float K_damp = 0.3f;
+        float K_damp = 0.5f; // 先改小，因为现在增益变高了
 
-        float max_output = 0.5f;
+        // 关键：把 max_output 改成 1.0，方便上面的映射计算
+        // 意思是：算法内部计算出来的最大值是 1.0，对应舵机打满 45度
+        float max_output = 1.0f;
 
         float last_yaw_err = 0;
         float last_pitch_err = 0;
@@ -71,4 +73,5 @@ private:
 
     ControlParams params;
     /*********************************** */
+    TickType_t lastWakeTime = 0;
 };

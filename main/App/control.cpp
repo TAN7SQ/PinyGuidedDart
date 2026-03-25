@@ -11,8 +11,10 @@ void Control::run()
     xEventGroupWaitBits(rtoshandler.StartSyncGroup, START_SYNC_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
     //========================================================
     ESP_LOGI(TAG, "ControlTask Start");
+    int angle = 0;
     while (1) {
-        vTaskDelay(pdMS_TO_TICKS(2));
+        lastWakeTime = xTaskGetTickCount();
+        vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(10));
 
         if (uxQueueMessagesWaiting(rtoshandler.imuQueueFiltered)) {
             xQueueReceive(rtoshandler.imuQueueFiltered, &imuAttitude, 0);
@@ -38,32 +40,54 @@ void Control::update()
         pitch_rate_cmd = bodyTarget.pitch_error_rate;
     }
     else {
-        // 无目标：阻尼
-        yaw_rate_cmd = -params.K_damp * imuRawData.gyro.z;
-        pitch_rate_cmd = -params.K_damp * imuRawData.gyro.y;
+        yaw_rate_cmd = -params.K_damp * imuRawData.gyro.yaw;
+        pitch_rate_cmd = -params.K_damp * imuRawData.gyro.pitch;
     }
 
-    float yaw_rate_err = yaw_rate_cmd - imuRawData.gyro.z;
-    float pitch_rate_err = pitch_rate_cmd - imuRawData.gyro.y;
+    // 防抖
+    if (fabs(yaw_rate_cmd) < 0.02f)
+        yaw_rate_cmd = 0;
+    if (fabs(pitch_rate_cmd) < 0.02f)
+        pitch_rate_cmd = 0;
+
+    float yaw_rate_err = yaw_rate_cmd - imuRawData.gyro.yaw;
+    float pitch_rate_err = pitch_rate_cmd - imuRawData.gyro.pitch;
 
     float yaw_out = params.Kp_rate * yaw_rate_err + params.Kd_rate * (yaw_rate_err - params.last_yaw_err);
-
     float pitch_out = params.Kp_rate * pitch_rate_err + params.Kd_rate * (pitch_rate_err - params.last_pitch_err);
-
     params.last_yaw_err = yaw_rate_err;
     params.last_pitch_err = pitch_rate_err;
-
     yaw_out = std::clamp(yaw_out, -params.max_output, params.max_output);
     pitch_out = std::clamp(pitch_out, -params.max_output, params.max_output);
 
-    // ===== X翼混控 =====
-    float s1 = pitch_out + yaw_out;
-    float s2 = pitch_out - yaw_out;
-    float s3 = -pitch_out - yaw_out;
-    float s4 = -pitch_out + yaw_out;
+    const float SERVO_MAX_DEFLECTION = 45.0f;
 
-    mServo.SetAngle(Servo::LB0, s1);
-    mServo.SetAngle(Servo::LB1, s2);
-    mServo.SetAngle(Servo::RB0, s3);
-    mServo.SetAngle(Servo::RB1, s4);
+    // 线性映射：[-max_output, max_output] -> [-SERVO_MAX_DEFLECTION, SERVO_MAX_DEFLECTION]
+    float yaw_servo = (yaw_out / params.max_output) * SERVO_MAX_DEFLECTION;
+    float pitch_servo = (pitch_out / params.max_output) * SERVO_MAX_DEFLECTION;
+
+    printf("%.3f,%.3f\n", yaw_out, pitch_out);
+
+    // ===== X翼混控 =====
+    /*
+        HEAD
+    CH2     CH1
+     \     /
+      \   /
+       \ /
+       / \
+      /   \
+     /     \
+    CH3     CH4
+      BACK
+    */
+    float s1 = pitch_servo + yaw_servo;
+    float s2 = pitch_servo - yaw_servo;
+    float s3 = -pitch_servo - yaw_servo;
+    float s4 = -pitch_servo + yaw_servo;
+
+    mServo.SetDelta(Servo::CH1, s1);
+    mServo.SetDelta(Servo::CH2, s2);
+    mServo.SetDelta(Servo::CH3, s3);
+    mServo.SetDelta(Servo::CH4, s4);
 }

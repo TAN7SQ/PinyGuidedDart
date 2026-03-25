@@ -83,11 +83,19 @@ esp_err_t Servo::SetAngles(uint16_t angles[ALL])
 
 esp_err_t Servo::Initialize()
 {
-    for (int a = 30; a <= 180; a += 5) {
+    for (int a = 30; a <= 180; a += 10) {
         SetAngle(ALL, a);
-        vTaskDelay(pdMS_TO_TICKS(50));
+        vTaskDelay(pdMS_TO_TICKS(30));
     }
-    SetAngle(ALL, 30);
+    SetAngle(ALL, 90);
     ESP_LOGI(TAG, "Servo initialized");
     return ESP_OK;
+}
+
+esp_err_t Servo::SetDelta(ServoCH_e ch, float delta)
+{
+    delta = std::clamp(delta, -60.0f, 60.0f);
+    float angle_f = 90.0f + delta;
+    uint8_t angle = (uint8_t)(angle_f + 0.5f);
+    return SetAngle(ch, angle);
 }

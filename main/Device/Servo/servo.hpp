@@ -46,15 +46,15 @@ class Servo
 public:
     enum ServoCH_e
     {
-        LF0 = 0,
+        CH1 = 0,
         // LF1,
-        RF0,
+        CH2,
         // RF1,
 
-        LB0,
-        LB1,
-        RB0,
-        RB1,
+        CH3,
+        CH4,
+        CH5,
+        CH6,
 
         FAN,
 
@@ -65,6 +65,7 @@ public:
     esp_err_t Initialize();
     esp_err_t SetAngle(ServoCH_e ch, uint8_t angle);
     esp_err_t SetAngles(uint16_t angles[ALL]);
+    esp_err_t SetDelta(ServoCH_e ch, float delta);
 
 private:
     static constexpr const char *TAG = "SERVO";
@@ -80,11 +81,11 @@ private:
     static constexpr gpio_num_t PINS[] = {
         GPIO_NUM_13,
         GPIO_NUM_14,
-        GPIO_NUM_15,
+        GPIO_NUM_3,
         GPIO_NUM_16,
+        GPIO_NUM_15,
         GPIO_NUM_17,
         GPIO_NUM_18,
-        GPIO_NUM_3,
         // GPIO_NUM_41,
     };
 
