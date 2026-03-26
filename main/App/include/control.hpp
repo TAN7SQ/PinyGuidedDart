@@ -3,6 +3,8 @@
 #include "basicInclude.hpp"
 #include "servo.hpp"
 
+#include "lpf.hpp"
+
 /********************************************************** */
 enum Mode_e
 {
@@ -43,10 +45,15 @@ private:
     struct ControlParams
     {
         float Kp_angle = 3.0f;
-        float Kp_rate = 0.5f;  // 先调小一点，防止震荡
-        float Kd_rate = 0.05f; // 稍微加大 D 项
 
-        float K_damp = 0.5f; // 先改小，因为现在增益变高了
+        float Kp_rate = 0.6f;  // 先调小一点，防止震荡
+        float Kd_rate = 0.01f; // 稍微加大 D 项
+
+        float Kp_roll = 0.4f;
+        float Kd_roll = 0.01f;
+
+        float K_damp = 0.4f;
+        float K_roll_damp = 0.4f;
 
         // 关键：把 max_output 改成 1.0，方便上面的映射计算
         // 意思是：算法内部计算出来的最大值是 1.0，对应舵机打满 45度
@@ -54,6 +61,13 @@ private:
 
         float last_yaw_err = 0;
         float last_pitch_err = 0;
+        float last_roll_err = 0;
+
+        uint32_t last_time = 0;
+
+        LPF yawLPF;
+        LPF pitchLPF;
+        LPF rollLPF;
     };
 
     /*********************************************** */
@@ -68,7 +82,7 @@ private:
     xAxisIMU::IMUAttitude imuAttitude;
     xAxisIMU::IMURawData imuRawData;
 
-    Comm::BodyTarget_t bodyTarget;
+    Comm::ControlCmd_t bodyTarget;
     Mode_e mode = Steady;
 
     ControlParams params;

@@ -127,11 +127,11 @@ esp_err_t HostPC::parseData(const MsgType type, void *payload, uint16_t payloadL
     }
     switch (type) {
     case MsgType::CONTROL: {
-        if (payloadLength != sizeof(Comm::BodyTarget_t)) {
-            ESP_LOGW(TAG, "BodyTarget_t size mismatch");
+        if (payloadLength != sizeof(Comm::ControlCmd_t)) {
+            ESP_LOGW(TAG, "ControlCmd_t size mismatch");
             return ESP_ERR_INVALID_SIZE;
         }
-        Comm::BodyTarget_t ctrl;
+        Comm::ControlCmd_t ctrl;
         memcpy(&ctrl, payload, sizeof(ctrl));
         xQueueSend(rtoshandler.ControlQueue, &ctrl, 0);
         break;

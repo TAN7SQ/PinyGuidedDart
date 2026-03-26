@@ -94,7 +94,7 @@ esp_err_t Servo::Initialize()
 
 esp_err_t Servo::SetDelta(ServoCH_e ch, float delta)
 {
-    delta = std::clamp(delta, -60.0f, 60.0f);
+    delta = std::clamp(delta, -80.0f, 80.0f);
     float angle_f = 90.0f + delta;
     uint8_t angle = (uint8_t)(angle_f + 0.5f);
     return SetAngle(ch, angle);

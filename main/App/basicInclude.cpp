@@ -20,7 +20,7 @@ esp_err_t rtosHandlerInit(void)
     rtoshandler.imuQueueFiltered = xQueueCreate(8, sizeof(xAxisIMU::IMUAttitude));
 
     rtoshandler.BaroQueue = xQueueCreate(8, sizeof(sensor::MS5611::ConvertData));
-    rtoshandler.ControlQueue = xQueueCreate(8, sizeof(Comm::BodyTarget_t));
+    rtoshandler.ControlQueue = xQueueCreate(8, sizeof(Comm::ControlCmd_t));
 
     rtoshandler.InitCountSem = xSemaphoreCreateCounting(10, 0);
     rtoshandler.StartSyncGroup = xEventGroupCreate();
