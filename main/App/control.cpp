@@ -98,10 +98,10 @@ void Control::update()
     float u_pitch = pitch_out * 1.0f;
     float u_roll = roll_out * 0.6f;
 
-    float s1 = u_pitch + u_yaw + u_roll;
-    float s2 = u_pitch - u_yaw - u_roll;
-    float s3 = -u_pitch - u_yaw + u_roll;
-    float s4 = -u_pitch + u_yaw - u_roll;
+    float s1 = u_pitch /*+ u_yaw + u_roll*/;
+    float s2 = -u_pitch /*- u_yaw - u_roll*/;
+    float s3 = -u_pitch /*- u_yaw + u_roll*/;
+    float s4 = u_pitch /*+ u_yaw - u_roll*/;
 
     float max_abs_val = std::max({fabsf(s1), fabsf(s2), fabsf(s3), fabsf(s4)});
     float max_val = std::max(max_abs_val, 1.0f);
