@@ -41,10 +41,10 @@ PinyDart/
 
 `main/idf_component.yml` 当前声明了这些外部组件依赖：
 
-- `espressif/led_strip`：驱动 WS2812 LED。
-- `hayschan/buzzer`：蜂鸣器相关组件依赖。
-- `espressif/servo`：舵机组件依赖。
-- `espp/math`：数学工具，例如快速平方根倒数。
+* `espressif/led_strip`：驱动 WS2812 LED。
+* `hayschan/buzzer`：蜂鸣器相关组件依赖。
+* `espressif/servo`：舵机组件依赖。
+* `espp/math`：数学工具，例如快速平方根倒数。
 
 ## 快速开始
 
@@ -126,52 +126,52 @@ flowchart LR
 
 ### 入口与应用层
 
-- `main/main.cpp` 是 ESP-IDF 标准入口，负责初始化 NVS。遇到 NVS 页满或版本变化时会先擦除再重新初始化，然后进入 `Application`。
-- `main/App/application.cpp` 是项目调度中心。它创建 LED、按键、I2C 传感器、SPI 传感器、控制、上位机通信和应用管理任务。
-- `main/App/basicInclude.*` 定义全局 `rtoshandler`，集中保存 IMU、气压计、控制命令队列，以及任务启动同步用的信号量和事件组。
-- `Tools::AppManagerTask` 会等待每个任务报告初始化完成，再统一释放 `START_SYNC_BIT`，避免某些任务先跑起来时队列或外设还没准备好。
+* `main/main.cpp` 是 ESP-IDF 标准入口，负责初始化 NVS。遇到 NVS 页满或版本变化时会先擦除再重新初始化，然后进入 `Application`。
+* `main/App/application.cpp` 是项目调度中心。它创建 LED、按键、I2C 传感器、SPI 传感器、控制、上位机通信和应用管理任务。
+* `main/App/basicInclude.*` 定义全局 `rtoshandler`，集中保存 IMU、气压计、控制命令队列，以及任务启动同步用的信号量和事件组。
+* `Tools::AppManagerTask` 会等待每个任务报告初始化完成，再统一释放 `START_SYNC_BIT`，避免某些任务先跑起来时队列或外设还没准备好。
 
 ### 传感器采集
 
-- `SensorSpiTask` 初始化 SPI2 和 BMI088，周期约 10 ms 读取加速度计/陀螺仪数据。
-- 读取到的 IMU 数据先经过 `IMUCalibration` 做加速度计校正，再进入 `AttitudeEKF` 做姿态估计。
-- 姿态结果以四元数和欧拉角形式写入 `imuQueueFiltered`，原始/换算后的 IMU 数据写入 `imuQueueRaw`。
-- `SensorIIcTask` 初始化 I2C1 和 MS5611，读取温度、气压和相对高度，并通过 `BaroQueue` 发送给其他任务。
+* `SensorSpiTask` 初始化 SPI2 和 BMI088，周期约 10 ms 读取加速度计/陀螺仪数据。
+* 读取到的 IMU 数据先经过 `IMUCalibration` 做加速度计校正，再进入 `AttitudeEKF` 做姿态估计。
+* 姿态结果以四元数和欧拉角形式写入 `imuQueueFiltered`，原始/换算后的 IMU 数据写入 `imuQueueRaw`。
+* `SensorIIcTask` 初始化 I2C1 和 MS5611，读取温度、气压和相对高度，并通过 `BaroQueue` 发送给其他任务。
 
 ### 姿态与滤波算法
 
-- `main/Algorithm/AuxiliaryMath.*` 提供 `Vec3`、`Quat`、矩阵结构，以及四元数归一化、欧拉角转换等基础数学工具。
-- `main/Algorithm/kalman6asix.*` 实现姿态 EKF，状态包含四元数和陀螺仪 bias。算法中包含预测、加速度观测更新、静止检测、自适应观测噪声和协方差更新。
-- `main/Algorithm/Calibrate/calibrate.*` 封装 IMU 标定参数和修正逻辑，支持加速度计 3x3 校准矩阵、零偏修正和陀螺仪 bias 修正。
-- `main/Algorithm/lpf.hpp` 和一维 Kalman 相关文件用于控制环微分项平滑和高度数据滤波。
+* `main/Algorithm/AuxiliaryMath.*` 提供 `Vec3`、`Quat`、矩阵结构，以及四元数归一化、欧拉角转换等基础数学工具。
+* `main/Algorithm/kalman6asix.*` 实现姿态 EKF，状态包含四元数和陀螺仪 bias。算法中包含预测、加速度观测更新、静止检测、自适应观测噪声和协方差更新。
+* `main/Algorithm/Calibrate/calibrate.*` 封装 IMU 标定参数和修正逻辑，支持加速度计 3x3 校准矩阵、零偏修正和陀螺仪 bias 修正。
+* `main/Algorithm/lpf.hpp` 和一维 Kalman 相关文件用于控制环微分项平滑和高度数据滤波。
 
 ### 控制输出
 
-- `main/App/control.cpp` 中的 `ControlTask` 以约 100 Hz 周期运行，读取姿态、原始 IMU 和上位机控制命令。
-- `Control::update()` 根据目标角速度或阻尼策略计算 yaw/pitch/roll 控制量，并通过低通滤波处理误差微分项。
-- 输出经过死区、限幅和混控映射后写入 `Servo::SetDelta()`，最终转换为舵机角度。
-- 当前混控代码中 pitch 是主要输出项，yaw/roll 混入项已经留好变量和结构，但在 `s1` 到 `s4` 的实际表达式中仍处于注释/预留状态。
+* `main/App/control.cpp` 中的 `ControlTask` 以约 100 Hz 周期运行，读取姿态、原始 IMU 和上位机控制命令。
+* `Control::update()` 根据目标角速度或阻尼策略计算 yaw/pitch/roll 控制量，并通过低通滤波处理误差微分项。
+* 输出经过死区、限幅和混控映射后写入 `Servo::SetDelta()`，最终转换为舵机角度。
+* 当前混控代码中 pitch 是主要输出项，yaw/roll 混入项已经留好变量和结构，但在 `s1` 到 `s4` 的实际表达式中仍处于注释/预留状态。
 
 ### 上位机通信
 
-- `main/App/hostpc.cpp` 通过 UART1 与上位机通信，波特率配置为 1.5 Mbps。
-- 发送帧格式为 `SOF | TYPE | LEN | PAYLOAD | CRC16`，其中帧头 `SOF` 为 `0xAA`，CRC 使用 `Tools::crc16_ccitt()`。
-- 当前会发送姿态数据和气压计数据；接收侧预留并解析 `CONTROL` 类型消息，解析成功后写入 `ControlQueue`。
+* `main/App/hostpc.cpp` 通过 UART1 与上位机通信，波特率配置为 1.5 Mbps。
+* 发送帧格式为 `SOF | TYPE | LEN | PAYLOAD | CRC16`，其中帧头 `SOF` 为 `0xAA`，CRC 使用 `Tools::crc16_ccitt()`。
+* 当前会发送姿态数据和气压计数据；接收侧预留并解析 `CONTROL` 类型消息，解析成功后写入 `ControlQueue`。
 
 ### 网络与日志
 
-- `main/Protocol/wifi_udp_client.*` 封装 Wi-Fi STA、静态 IP、UDP socket 和发送队列。
-- UDP 发送采用队列异步发送，应用层只需要调用 `sendData()` 入队，实际发送由 `udpSendTask` 完成。
-- `Application` 中已经有 Wi-Fi 参数示例，不过初始化调用目前处于注释状态；如果需要启用无线日志或遥测，需要恢复 `client.init(client_config, ...)`。
+* `main/Protocol/wifi_udp_client.*` 封装 Wi-Fi STA、静态 IP、UDP socket 和发送队列。
+* UDP 发送采用队列异步发送，应用层只需要调用 `sendData()` 入队，实际发送由 `udpSendTask` 完成。
+* `Application` 中已经有 Wi-Fi 参数示例，不过初始化调用目前处于注释状态；如果需要启用无线日志或遥测，需要恢复 `client.init(client_config, ...)`。
 
 ### 设备驱动
 
-- `Servo` 使用 LEDC 生成 50 Hz PWM，并针对每个通道设置脉宽范围和死区。
-- `Beeper` 使用 RMT 输出方波，内部有异步蜂鸣队列，可播放开机/运行提示音。
-- `WS2812` 使用 `led_strip` 组件驱动 RGB LED，支持 RGB、HSV、熄灭、呼吸和彩虹效果。
-- `TF_Card` 使用 SDMMC + FATFS 挂载 TF 卡，挂载点为 `/sdcard`。
+* `Servo` 使用 LEDC 生成 50 Hz PWM，并针对每个通道设置脉宽范围和死区。
+* `Beeper` 使用 RMT 输出方波，内部有异步蜂鸣队列，可播放开机/运行提示音。
+* `WS2812` 使用 `led_strip` 组件驱动 RGB LED，支持 RGB、HSV、熄灭、呼吸和彩虹效果。
+* `TF_Card` 使用 SDMMC + FATFS 挂载 TF 卡，挂载点为 `/sdcard`。
 
-## 写得比较好的地方
+## 值得一提的地方
 
 1. **模块边界清楚**：CMake 按 Sensor、Device、Protocol、App、Algorithm 分组，代码目录也基本对应这些职责，后续加传感器或换执行器时比较容易定位。
 2. **总线抽象做得比较扎实**：`SPIBus`、`I2CBus`、`uart` 把 ESP-IDF 原始 API 包起来，传感器驱动不需要重复写底层收发细节。
@@ -185,8 +185,8 @@ flowchart LR
 
 ## 后续可继续完善的方向
 
-- 将 Wi-Fi SSID、密码、服务器 IP 等参数从源码中移到 `sdkconfig`、NVS 或单独配置文件，方便公开仓库和现场调试。
-- 把 `device_c` 中的 C 版传感器驱动和当前 C++ 驱动关系梳理清楚，未使用的旧代码可以移动到 legacy 或删除。
-- 给 UART 上位机协议补一份 Python 解析脚本，和 `HostPC::sendData()` 的帧格式保持一致。
-- 将 yaw/roll 混控项从预留状态推进到可配置状态，方便不同舵面布局和控制模式切换。
-- 为传感器驱动和协议帧解析增加最小单元测试，减少后续改寄存器和消息格式时的回归风险。
+* 将 Wi-Fi SSID、密码、服务器 IP 等参数从源码中移到 `sdkconfig`、NVS 或单独配置文件，方便公开仓库和现场调试。
+* 把 `device_c` 中的 C 版传感器驱动和当前 C++ 驱动关系梳理清楚，未使用的旧代码可以移动到 legacy 或删除。
+* 给 UART 上位机协议补一份 Python 解析脚本，和 `HostPC::sendData()` 的帧格式保持一致。
+* 将 yaw/roll 混控项从预留状态推进到可配置状态，方便不同舵面布局和控制模式切换。
+* 为传感器驱动和协议帧解析增加最小单元测试，减少后续改寄存器和消息格式时的回归风险。
